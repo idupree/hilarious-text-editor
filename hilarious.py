@@ -40,16 +40,23 @@ def request_handler(hilarious_file_name):
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
   #todo: keep the file open ONLY so that other window processes know not to mess with it
   class RequestHandler(http.server.BaseHTTPRequestHandler):
+    def my_error(self, code):
+      self.send_response(code)
+      self.boilerplate_headers()
+      self.send_header('Content-Type', 'text/plain')
+      self.end_headers()
+      self.wfile.write(str(code).encode('utf-8'))
+
     def do_GET(self):
       self.close_connection = True
       if self.path == '/robots.txt':
         self.robots()
       elif self.path == '/favicon.ico':
-        self.send_error(404)
+        self.my_error(404)
       elif self.path == '/':
         self.editor()
       else:
-        self.send_error(404)
+        self.my_error(404)
 
     def boilerplate_headers(self):
       #self.send_header('X-Frame-Options', 'SAMEORIGIN')
@@ -87,13 +94,13 @@ def request_handler(hilarious_file_name):
     def do_POST(self):
       self.close_connection = True
       if not self.is_valid_post():
-        self.send_error(400)
+        self.my_error(400)
       elif re.search('/get_file_contents\?', self.path):
         self.get_file_contents()
       elif re.search('^/save\?', self.path):
         self.save()
       else:
-        self.send_error(404)
+        self.my_error(404)
 
     #def open_file(self):
     #  pass
@@ -110,7 +117,7 @@ def request_handler(hilarious_file_name):
 
     def save(self):
       if self.headers['Content-Length'] == None:
-        self.send_error(411)
+        self.my_error(411)
         return
       length = int(self.headers['Content-Length'])
       # we're going to be saving really often, so it's likely
