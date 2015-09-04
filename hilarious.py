@@ -99,7 +99,7 @@ var trying_to_save = false;
 var save_interval = null;
 var save_req = null;
 var last_sync_attempt;
-var last_edit;
+var last_edit = 0;
 var last_sync_success;
 var latest_time_that_the_server_has_all_our_data; // in theory updated continously when the server has our data, but actually only retroactively updated once the user types something to be the moment before they typed
 function call_intermittently_while_trying_to_save() {
@@ -118,15 +118,19 @@ function describe_since(time) {
   if(duration < 6000) {
     return "from the last few seconds";
   } else if(duration < 1.6*60*1000) {
-    return short_since + " (" + Math.round(d/1000) + " seconds ago)";
+    return short_since + " (" + Math.round(duration/1000) + " seconds ago)";
   } else if(duration < 1.6*3600*1000) {
-    return short_since + " (" + Math.round(d/1000/60) + " minutes ago)";
+    return short_since + " (" + Math.round(duration/1000/60) + " minutes ago)";
   } else if(duration < 1.6*86400*1000) {
-    return "since " + date + " (" + Math.round(d/1000/3600) + " hours ago)";
+    return "since " + date + " (" + Math.round(duration/1000/3600) + " hours ago)";
   } else {
-    return "since " + date + " (" + Math.round(d/1000/86400) + " days ago)";
+    return "since " + date + " (" + Math.round(duration/1000/86400) + " days ago)";
   }
 }
+
+// this should be active the millisecond after someone starts typing.
+// not 2.5 seconds later when the save attempt starts.
+// why bother removing and adding it all the time.
 function unsaved_beforeunload(e) {
   var time_unsaved = Date.now() - latest_time_that_the_server_has_all_our_data;
   // some changes haven't saved yet!
@@ -136,12 +140,17 @@ function unsaved_beforeunload(e) {
   return message; // other browsers
 }
 
-function starting_saving() {
+function we_will_need_to_save() {
   if(!trying_to_save) {
     trying_to_save = true;
-    save_interval = setInterval(call_intermittently_while_trying_to_save, 60000);
     window.addEventListener('beforeunload', unsaved_beforeunload);
   }
+}
+function starting_saving() {
+  if(!save_interval) {
+    save_interval = setInterval(call_intermittently_while_trying_to_save, 60000);
+  }
+  we_will_need_to_save();
 }
 function all_done_saving() {
   trying_to_save = false;
@@ -191,17 +200,19 @@ function try_save() {
 }
 var debounced_save = _.debounce(try_save, 2500);
 
-function editorchange_less_urgent() {
-  last_edit = Date.now();
-  try_save();
+//function editorchange_less_urgent() {
+//  last_edit = Date.now();
+//  try_save();
+//}
+//var debounced_editorchange_less_urgent = _.debounce(editorchange_less_urgent, 2500);
 
-}
-var debounced_editorchange_less_urgent = _.debounce(editorchange_less_urgent, 2500);
-
-function editorchange() {
+function adjust_editor_height() {
   if(editor.scrollHeight > editor.clientHeight) {
     editor.style.height = editor.scrollHeight+'px';
   }
+}
+function editor_input() {
+  adjust_editor_height();
   var now = Date.now();
   if(last_edit <= latest_time_that_the_server_has_all_our_data) {
     if(latest_time_that_the_server_has_all_our_data < now) {
@@ -209,8 +220,9 @@ function editorchange() {
     }
   }
   last_edit = now;
-  debounced_editorchange_less_urgent();
+  we_will_need_to_save();
   debounced_save();
+  //debounced_editorchange_less_urgent();
 }
 
 for(var i = 1; i < 1000; ++i) {
@@ -221,7 +233,7 @@ for(var i = 1; i < 1000; ++i) {
   linenos.appendChild(a);
 }
 
-editor.addEventListener('input', editorchange);
+editor.addEventListener('input', editor_input);
 
 function load() {
   var req = new XMLHttpRequest();
@@ -230,7 +242,7 @@ function load() {
       if(req.status === 200) {
         editor.value = req.responseText;
         latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
-        editorchange();
+        adjust_editor_height();
       }
     }
   }
