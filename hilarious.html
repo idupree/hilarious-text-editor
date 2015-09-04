@@ -200,10 +200,11 @@ function editor_input() {
 }
 
 for(var i = 1; i < 1000; ++i) {
-  var str = document.createTextNode(''+i);
+  var str = ''+i;
+  var text = document.createTextNode(str);
   var a = document.createElement('a');
   a.setAttribute('href', '#'+str);
-  a.appendChild(str);
+  a.appendChild(text);
   linenos.appendChild(a);
 }
 
