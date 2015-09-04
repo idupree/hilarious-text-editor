@@ -21,7 +21,11 @@ html,body {
 #bar {
   float: left;
   min-height: 100%;
+  width: 20em;
   background-color: #cfe;
+}
+#bar > div {
+  margin: 1em 0;
 }
 #linenos {
   float: left;
@@ -48,7 +52,7 @@ html,body {
   </style>
 </head>
 <body>
-  <div id="bar"><div id="save-status"></div></div>
+  <div id="bar"><div id="save-status"></div><div>Known bugs: other users on the same computer can edit your stuff; You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it; The line numbers are wrong if any of the lines are soft-wrapped; The line numbers are links but don't do anything.</div></div>
   <div id="linenos"></div>
   <textarea id="editor" autofocus cols="80"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
