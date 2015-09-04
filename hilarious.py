@@ -28,6 +28,14 @@
 import os, sys, time, re
 import http.server
 
+scriptdir = os.path.dirname(os.path.abspath(__file__))
+def get_filename_relative_to_this_script(name):
+  return os.path.join(scriptdir, name)
+html_filename = get_filename_relative_to_this_script('hilarious.html')
+test_edited_filename = get_filename_relative_to_this_script('test_hilariously_edited.txt')
+# temp_filename should be in the same filesystem as the files being edited...
+temp_filename = get_filename_relative_to_this_script('temp-hilarious-editor-temp.txt~')
+
 def request_handler(hilarious_file_name):
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
   #todo: keep the file open ONLY so that other window processes know not to mess with it
@@ -64,7 +72,7 @@ def request_handler(hilarious_file_name):
       self.end_headers()
       # load page_html each time so that development is faster:
       # fewer things require restarting the server
-      with open('hilarious.html', 'rt') as f:
+      with open(get_filename_relative_to_this_script('hilarious.html'), 'rt') as f:
         page_html = f.read()
       self.wfile.write(page_html.encode('utf-8'))
 
@@ -108,10 +116,9 @@ def request_handler(hilarious_file_name):
       # we're going to be saving really often, so it's likely
       # that if the system crashes it'll be during a write,
       # so make sure writes are atomic
-      temp_name = '/n/test/hilar/temp~'
-      with open(temp_name, 'wt') as f:
+      with open(temp_filename, 'wt') as f:
         f.write(self.rfile.read(length).decode('utf-8'))
-      os.replace(temp_name, hilarious_file_name)
+      os.replace(temp_filename, hilarious_file_name)
       self.send_response(204)
       self.boilerplate_headers()
       self.end_headers()
@@ -127,7 +134,9 @@ def hilariously_edit_one_file(filename):
   server.serve_forever()
 
 def main():
-  hilariously_edit_one_file('/n/test/hilar/hilariously_edited.txt')
+  # create if not exists:
+  with open(test_edited_filename, 'at') as f: pass
+  hilariously_edit_one_file(test_edited_filename)
 
 if __name__ == '__main__':
   main()
