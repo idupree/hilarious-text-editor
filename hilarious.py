@@ -28,9 +28,6 @@
 import os, sys, time, re
 import http.server
 
-with open('hilarious.html', 'rt') as f:
-  page_html = f.read()
-
 def request_handler(hilarious_file_name):
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
   #todo: keep the file open ONLY so that other window processes know not to mess with it
@@ -65,6 +62,10 @@ def request_handler(hilarious_file_name):
       self.send_header('Content-Type', 'text/html; charset=utf-8')
       self.boilerplate_headers()
       self.end_headers()
+      # load page_html each time so that development is faster:
+      # fewer things require restarting the server
+      with open('hilarious.html', 'rt') as f:
+        page_html = f.read()
       self.wfile.write(page_html.encode('utf-8'))
 
     def is_valid_post(self):
