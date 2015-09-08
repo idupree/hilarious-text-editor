@@ -26,6 +26,7 @@
 # relevant if i change the file on disk with something else
 
 import os, sys, time, re
+import socket
 import http.server
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +37,7 @@ test_edited_filename = get_filename_relative_to_this_script('test_hilariously_ed
 # temp_filename should be in the same filesystem as the files being edited...
 temp_filename = get_filename_relative_to_this_script('temp-hilarious-editor-temp.txt~')
 
-def request_handler(hilarious_file_name):
+def request_handler(server_origin, hilarious_file_name):
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
   #todo: keep the file open ONLY so that other window processes know not to mess with it
   class RequestHandler(http.server.BaseHTTPRequestHandler):
@@ -88,9 +89,9 @@ def request_handler(hilarious_file_name):
       return (
         self.headers['X-Please-Believe-I-Am-Not-Cross-Domain'] == 'yes' and
         (
-          self.headers['Origin'] == 'http://localhost:3419' or
+          self.headers['Origin'] == server_origin or
           (self.headers['Origin'] == None and
-           re.search('^http://localhost:3419/', self.headers['Referer']))))
+           re.search('^'+re.escape(server_origin)+'/', self.headers['Referer']))))
 
     def do_POST(self):
       self.close_connection = True
@@ -137,14 +138,18 @@ def request_handler(hilarious_file_name):
   return RequestHandler
 
 
-def hilariously_edit_one_file(filename):
-  server = http.server.HTTPServer(('localhost', 3419), request_handler(filename))
+def hilariously_edit_one_file(server_host, server_port, filename):
+  server_ip = socket.gethostbyname(server_host)
+  server_origin = 'http://' + server_host + ':' + str(server_port)
+  server = http.server.HTTPServer(
+             (server_host, server_port),
+             request_handler(server_origin, filename))
   server.serve_forever()
 
 def main():
   # create if not exists:
   with open(test_edited_filename, 'at') as f: pass
-  hilariously_edit_one_file(test_edited_filename)
+  hilariously_edit_one_file('localhost', 3419, test_edited_filename)
 
 if __name__ == '__main__':
   main()
