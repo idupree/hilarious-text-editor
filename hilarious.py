@@ -64,6 +64,7 @@ def request_handler(hilarious_file_name):
       self.send_header('X-Robots-Tag', 'noarchive, noindex, nosnippet')
       self.send_header('Cache-Control', 'no-cache')
       self.send_header('P3P', 'CP="This is not a P3P policy"')
+      self.send_header('X-UA-Compatible', 'IE=edge')
   
     def robots(self):
       self.send_response(200)
