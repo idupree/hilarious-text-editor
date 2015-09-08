@@ -166,8 +166,8 @@ function try_save() {
     }
   }
   req.onreadystatechange = ack;
-  req.timeout = req_timeout;
   req.open('POST', '/save?'+cachebuster(), true)
+  req.timeout = req_timeout;
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
   req.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
   req.send(editor.value);
