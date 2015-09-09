@@ -131,6 +131,7 @@ def request_handler(server_origin, hilarious_file_name):
         f.write(self.rfile.read(length).decode('utf-8'))
       os.replace(temp_filename, hilarious_file_name)
       self.send_response(204)
+      self.send_header('Content-Type', 'text/plain')
       self.boilerplate_headers()
       self.end_headers()
 
