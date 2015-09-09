@@ -34,6 +34,7 @@ html,body {
   background-color: #fce;
   text-align: right;
   padding: 0 1px;
+  white-space: pre;
 }
 #linenos > a {
   display: block;
@@ -51,6 +52,12 @@ html,body {
   resize: none;
   border-width: 0px;
   width: 80ch;
+  /*
+    word-break is maybe not the most aesthetic, but it makes it easy to 
+    compute where the line numbers go, and easy for the users to see
+    how much whitespace they have, so we'll go with it for now
+  */
+  word-break: break-all;
 }
   </style>
 </head>
@@ -193,6 +200,7 @@ function adjust_editor_height() {
   if(editor.scrollHeight > editor.clientHeight) {
     editor.style.height = editor.scrollHeight+'px';
   }
+  debounced_compute_line_numbers();
 }
 function editor_input() {
   adjust_editor_height();
@@ -208,14 +216,26 @@ function editor_input() {
   //debounced_editorchange_less_urgent();
 }
 
-for(var i = 1; i < 1000; ++i) {
-  var str = ''+i;
-  var text = document.createTextNode(str);
-  var a = document.createElement('a');
-  a.setAttribute('href', '#'+str);
-  a.appendChild(text);
-  linenos.appendChild(a);
+function compute_line_numbers(editor_width) {
+  var s = '';
+  _.each(editor.value.split('\n'), function(line, idx) {
+    var lines = Math.max(1, Math.ceil(line.length / 80));
+    var lineno = idx + 1;
+    s += lineno;
+    while(lines > 0) {
+      s += '\n';
+      --lines;
+    }
+  });
+  var $linenos = $('#linenos');
+  // It's probably faster not to modify the DOM if there's no change.
+  // And there's usually no change.
+  var old_linenos_text = $linenos.text();
+  if(old_linenos_text !== s) {
+    $linenos.text(s);
+  }
 }
+var debounced_compute_line_numbers = _.debounce(compute_line_numbers, 50);
 
 editor.addEventListener('input', editor_input);
 
