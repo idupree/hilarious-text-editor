@@ -106,6 +106,12 @@ function describe_since(time) {
 // not 2.5 seconds later when the save attempt starts.
 // why bother removing and adding it all the time.
 function unsaved_beforeunload(e) {
+  // In the time the user is looking at the message, maybe we can
+  // squeeze in a save.  An example circumstance where this is useful:
+  // if they click "don't close the tab" and then try closing the tab again,
+  // hopefully the second time they close the tab it will already be saved
+  // so we don't have to warn them again.
+  try_save();
   var time_unsaved = Date.now() - latest_time_that_the_server_has_all_our_data;
   // some changes haven't saved yet!
   //var message = "changes from the last " + describe_millisecond_duration(time_unsaved) + " haven't saved yet!"
