@@ -60,12 +60,37 @@ html,body {
   */
   word-break: break-all;
 }
+#ask-for-token {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: rgba(200, 200, 200, 0.85);
+  text-align: center;
+  display: table;
+}
+#ask-for-token > label {
+  display: table-cell;
+  vertical-align: middle;
+}
+#ask-for-token > label > p {
+  font-size: 2em;
+}
+#token {
+  font-size: 1.2em;
+  font-family: inherit;
+  line-height: inherit;
+  width: 21em;
+  margin-top: 0.5em;
+  height: 2em;
+}
   </style>
 </head>
 <body>
+  <div id="ask-for-token"><label><p>Token:</p><input type="password" id="token" autofocus></label></div>
   <div id="bar"><div id="save-status"></div><div>Known bugs: other users on the same computer can edit your stuff; You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it; The line numbers are wrong if any of the lines are soft-wrapped; The line numbers are links but don't do anything.</div></div>
   <div id="linenos"></div>
-  <textarea id="editor" autofocus></textarea>
+  <textarea id="editor"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script>
@@ -82,6 +107,28 @@ var save_status = document.getElementById('save-status');
 function cachebuster() {
   return '' + Date.now() + Math.random();
 }
+
+var auth_token = "";
+//var auth_token = "hiii";
+//var auth_token = prompt("token?");
+function test_auth(callback) {
+  var req = new XMLHttpRequest();
+  req.onreadystatechange = function() {
+    if(req.readyState === 4) { // complete
+      if(req.status === 200 || req.status === 204) {
+        console.log("yay");
+        if(callback) { callback(); }
+      } else if(req.status >= 400 && req.status < 500) {
+        console.log("boo!");
+      }
+    }
+  };
+  req.open('POST', '/test_post_works?'+cachebuster(), true)
+  req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
+  req.setRequestHeader('X-Token', auth_token);
+  req.send(null);
+}
+
 
 // todo save if somdhc
 var trying_to_save = false;
@@ -190,6 +237,7 @@ function try_save() {
   req.open('POST', '/save?'+cachebuster(), true)
   req.timeout = req_timeout;
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
+  req.setRequestHeader('X-Token', auth_token);
   req.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
   req.send(editor.value);
 }
@@ -305,16 +353,34 @@ function load() {
         editor.value = req.responseText;
         latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
         adjust_editor_height();
+        editor.focus();
       }
     }
   }
   req.onreadystatechange = got_contents;
   req.open('POST', '/get_file_contents?'+cachebuster(), true)
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
+  req.setRequestHeader('X-Token', auth_token);
   req.send(null);
 }
 
-load();
+function get_token() {
+  var token_field = document.getElementById('token');
+  function got_input() {
+    auth_token = token_field.value;
+    test_auth(function() {
+      token_field.removeEventListener('input', got_input);
+      token_field.value = '';
+      document.body.removeChild(document.getElementById('ask-for-token'))
+      load();
+    });
+  };
+  got_input(); // in case no token is required (todo, serve different html in that case instead?)
+  token_field.addEventListener('input', got_input);
+}
+get_token();
+//test_auth();
+//load();
 
 }());
 </script>
