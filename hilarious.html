@@ -240,6 +240,60 @@ var debounced_compute_line_numbers = _.debounce(compute_line_numbers, 50);
 
 editor.addEventListener('input', editor_input);
 
+function repeat(str, count) {
+  if(str.repeat) {
+    return str.repeat(count);
+  } else {
+    // shorter version of
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/repeat
+    var rpt = '';
+    for (;;) {
+      if ((count & 1) == 1) {
+        rpt += str;
+      }
+      count >>>= 1;
+      if (count == 0) {
+        break;
+      }
+      str += str;
+    }
+    return rpt;
+  }
+}
+
+function fix_ch_unit() {
+  var fix_needed = false;
+  var font_size_str = $(editor).css('font-size');
+  var font_size = +font_size_str.replace(/px$/, '');
+  var intended_editor_width = 80;
+  var zeroes = repeat('0', intended_editor_width);
+  var $a = $('<div/>').text(zeroes).css({'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
+  var $b = $('<div/>').css({'width': intended_editor_width+'ch', 'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
+  $(document.body).append($a, $b);
+  console.log($a.width(), $b.width());
+  if(Math.abs($a.width() - $b.width()) > 1) {
+    // Browsers such as IE (even IE11) that implement the ch unit badly.
+    // Use "em" here instead of "px" because like "ch" it's relative to
+    // the font size (likely unimportant), and like "ch" it rounds to
+    // the nearest pixel so that elements are pixel-aligned (unimportant;
+    // we could easily round here by hand).  Round up by a pixel or two
+    // because that's sometimes needed.
+    var new_width = ($a.width()/font_size + 0.1)+'em';
+    console.log('working around poor implementation of "ch" unit: editor now '+new_width);
+    $(editor).css('width', new_width);
+    var fix_needed = true;
+  }
+  $a.remove();
+  $b.remove();
+  return fix_needed;
+}
+var ch_is_broken = fix_ch_unit();
+if(ch_is_broken) {
+  $(window).on('resize', function() {
+    fix_ch_unit();
+  });
+}
+
 function load() {
   var req = new XMLHttpRequest();
   function got_contents() {
