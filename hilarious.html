@@ -72,6 +72,10 @@ html,body {
 (function(){
 "use strict";
 
+if(window.console === undefined) {
+  window.console = { log: function() {} };
+}
+
 var editor = document.getElementById('editor');
 var save_status = document.getElementById('save-status');
 
@@ -270,7 +274,6 @@ function fix_ch_unit() {
   var $a = $('<div/>').text(zeroes).css({'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
   var $b = $('<div/>').css({'width': intended_editor_width+'ch', 'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
   $(document.body).append($a, $b);
-  console.log($a.width(), $b.width());
   if(Math.abs($a.width() - $b.width()) > 1) {
     // Browsers such as IE (even IE11) that implement the ch unit badly.
     // Use "em" here instead of "px" because like "ch" it's relative to
