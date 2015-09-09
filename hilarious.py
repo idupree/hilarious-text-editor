@@ -26,8 +26,7 @@
 # relevant if i change the file on disk with something else
 
 import os, sys, time, re
-import socket
-import http.server
+import socket, socketserver, http.server
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
 def get_filename_relative_to_this_script(name):
@@ -36,6 +35,9 @@ html_filename = get_filename_relative_to_this_script('hilarious.html')
 test_edited_filename = get_filename_relative_to_this_script('test_hilariously_edited.txt')
 # temp_filename should be in the same filesystem as the files being edited...
 temp_filename = get_filename_relative_to_this_script('temp-hilarious-editor-temp.txt~')
+
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+  pass
 
 def request_handler(server_origin, hilarious_file_name):
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
@@ -141,7 +143,7 @@ def request_handler(server_origin, hilarious_file_name):
 def hilariously_edit_one_file(server_host, server_port, filename):
   server_ip = socket.gethostbyname(server_host)
   server_origin = 'http://' + server_host + ':' + str(server_port)
-  server = http.server.HTTPServer(
+  server = ThreadingHTTPServer(
              (server_host, server_port),
              request_handler(server_origin, filename))
   server.serve_forever()
