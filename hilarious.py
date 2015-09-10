@@ -26,16 +26,17 @@
 # relevant if i change the file on disk with something else
 
 import os, sys, time, re, hashlib, random, math
+from os.path import join, abspath, relpath
 import socket, socketserver, http.server
+import json
 import argparse
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
 def get_filename_relative_to_this_script(name):
   return os.path.join(scriptdir, name)
 html_filename = get_filename_relative_to_this_script('hilarious.html')
-test_edited_filename = get_filename_relative_to_this_script('test_hilariously_edited.txt')
-# temp_filename should be in the same filesystem as the files being edited...
-temp_filename = get_filename_relative_to_this_script('temp-hilarious-editor-temp.txt~')
+
+default_default_edited_filename = get_filename_relative_to_this_script('test_hilariously_edited.txt')
 
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
   pass
@@ -60,7 +61,38 @@ def create_token():
   rng = random.SystemRandom()
   return ''.join(rng.choice(chars) for _ in range(count))
 
-def request_handler(server_origin, hilarious_file_name, auth_token=None):
+# heuristic
+# http://stackoverflow.com/a/7392391
+textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
+def editable_as_text(fname):
+  with open(fname, 'rb') as f:
+    # The translate() deletes every character in its second argument
+    # leaving only "binary-only" characters.
+    # The read() reads that many bytes or all the bytes in the file,
+    # whichever is less.
+    return len(f.read(1024).translate(None, textchars)) == 0
+
+# exclude all file paths with newlines and similar weird characters in them:
+# they are trouble and no use
+def exclude_dir(d):
+  return re.search(r'/\.git($|/)|[\x00-\x1f\x7f]', d)
+
+def exclude_file(f):
+  return (
+    os.path.islink(f) or
+    not os.path.isfile(f) or
+    exclude_dir(f) or
+    re.search(r'(~|\.swp)$|[\x00-\x1f\x7f]', f) or
+    not editable_as_text(f))
+
+def relpath_editable_files_under(rootpath):
+  for dirpath, dirnames, filenames in os.walk(rootpath):
+    dirnames[:] = [d for d in dirnames if not exclude_dir(abspath(join(dirpath, d)))]
+    for f in filenames:
+      if not exclude_file(abspath(join(dirpath, f))):
+        yield relpath(join(dirpath, f), rootpath)
+
+def request_handler(server_origin, hilarious_edited_path = None, auth_token=None):
   # Tokens already have enough bits of entropy that you can't brute-force
   # guess them, so a single hash is as good as bcrypt (and faster, and in
   # the python standard libraries). Goals: to prevent a server compromise
@@ -70,6 +102,22 @@ def request_handler(server_origin, hilarious_file_name, auth_token=None):
   # digest()).
   if auth_token != None:
     auth_token = hashlib.sha384(auth_token.encode('ascii')).digest()
+
+  if os.path.isfile(hilarious_edited_path):
+    default_file_name = hilarious_edited_path
+    hilarious_edited_directory = None
+  else:
+    default_file_name = get_filename_relative_to_this_script('test_hilariously_edited.txt')
+    hilarious_edited_directory = hilarious_edited_path
+
+  # editable_files is recomputed when /status is called... okay, I guess?
+  editable_files = set()
+  def recompute_editable_files():
+    nonlocal editable_files
+    if hilarious_edited_directory != None:
+      editable_files = set(relpath_editable_files_under(hilarious_edited_directory))
+  recompute_editable_files()
+
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
   #todo: keep the file open ONLY so that other windows processes know not to mess with it
   class RequestHandler(http.server.BaseHTTPRequestHandler):
@@ -132,6 +180,10 @@ def request_handler(server_origin, hilarious_file_name, auth_token=None):
         self.my_error(400)
       elif re.search('/test_post_works\?', self.path):
         self.test_post_works()
+      #elif re.search('/editable_files\?', self.path):
+      #  self.editable_files()
+      elif re.search('/status\?', self.path):
+        self.status()
       elif re.search('/get_file_contents\?', self.path):
         self.get_file_contents()
       elif re.search('^/save\?', self.path):
@@ -145,17 +197,49 @@ def request_handler(server_origin, hilarious_file_name, auth_token=None):
       self.boilerplate_headers()
       self.end_headers()
 
+    # newline-separated
+    #def editable_files(self):
+    #  # (make sure we successfully traverse the directory before
+    #  # saying we 200-succeeded at getting an answer)
+    #  editable_files = list(relpath_editable_files_under(hilarious_edited_directory))
+    #  self.send_response(200)
+    #  self.send_header('Content-Type', 'text/plain; charset=utf-8')
+    #  self.boilerplate_headers()
+    #  self.end_headers()
+    #  self.wfile.write('\n'.join(editable_files))
+
+    def status(self):
+      context_name = abspath(hilarious_edited_path)
+      recompute_editable_files()
+      result = json.dumps({
+        "context_name": context_name,
+        "editable_files": list(sorted(editable_files))
+      }, sort_keys = True).encode('utf-8')
+      self.send_response(200)
+      self.send_header('Content-Type', 'application/json')
+      self.boilerplate_headers()
+      self.end_headers()
+      self.wfile.write(result)
+
     #def open_file(self):
     #  pass
     def get_file_contents(self):
+      filename = default_file_name
+      if self.headers['X-File'] != None:
+        if self.headers['X-File'] in editable_files:
+          filename = join(hilarious_edited_directory, self.headers['X-File'])
+        else:
+          self.my_error(403)
+
       self.send_response(200)
       self.send_header('Content-Type', 'text/plain; charset=utf-8')
       self.boilerplate_headers()
       self.end_headers()
+
       # this locks up the server for long files, hm
       #open_file.seek(0)
       #self.wfile.write(open_file.read().encode('utf-8'))
-      with open(hilarious_file_name, 'rt') as f:
+      with open(filename, 'rt') as f:
         self.wfile.write(f.read().encode('utf-8'))
 
     def save(self):
@@ -163,12 +247,22 @@ def request_handler(server_origin, hilarious_file_name, auth_token=None):
         self.my_error(411)
         return
       length = int(self.headers['Content-Length'])
+
+      filename = default_file_name
+      if self.headers['X-File'] != None:
+        if self.headers['X-File'] in editable_files:
+          filename = join(hilarious_edited_directory, self.headers['X-File'])
+        else:
+          self.my_error(403)
+
       # we're going to be saving really often, so it's likely
       # that if the system crashes it'll be during a write,
       # so make sure writes are atomic
+      temp_filename = join(os.path.dirname(abspath(filename)),
+        'temp-hilarious-editor-'+create_token()+'.txt~')
       with open(temp_filename, 'wt') as f:
         f.write(self.rfile.read(length).decode('utf-8'))
-      os.replace(temp_filename, hilarious_file_name)
+      os.replace(temp_filename, filename)
       self.send_response(204)
       self.send_header('Content-Type', 'text/plain')
       self.boilerplate_headers()
@@ -180,11 +274,11 @@ def request_handler(server_origin, hilarious_file_name, auth_token=None):
   return RequestHandler
 
 
-def hilariously_edit_one_file(server_host, server_port, filename, auth_type):
+def hilariously_edit(server_host, server_port, path, auth_type):
   server_ip = socket.gethostbyname(server_host)
   server_origin = 'http://' + server_host + ':' + str(server_port)
 
-  sys.stdout.write(server_origin + '/\n')
+  sys.stdout.write('\nGo to:\n' + server_origin + '/\n')
   if auth_type in [None, 'none']:
     auth_token = None
   else:
@@ -197,12 +291,12 @@ def hilariously_edit_one_file(server_host, server_port, filename, auth_type):
       if auth_type in ['copy-or-stdout']:
         auth_stdout = (clip_result == False)
     if auth_stdout:
-      sys.stdout.write(auth_token + '\n')
+      sys.stdout.write('\nCopy this auth token:\n' + auth_token + '\n')
   sys.stdout.flush()
 
   server = ThreadingHTTPServer(
-             (server_host, server_port),
-             request_handler(server_origin, filename, auth_token))
+             (server_ip, server_port),
+             request_handler(server_origin, path, auth_token))
   server.serve_forever()
 
 # debian separates out tkinter into the package python3-tk,
@@ -238,13 +332,35 @@ except ImportError:
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='stdout')
+  parser.add_argument('--create-file', action='store_true')
+  parser.add_argument('thing_to_edit', nargs='?', default=default_default_edited_filename)
   args = parser.parse_args()
 
+  print('editing: '+args.thing_to_edit)
   print('auth: '+args.auth)
 
-  # create if not exists:
-  with open(test_edited_filename, 'at') as f: pass
-  hilariously_edit_one_file('localhost', 3419, test_edited_filename, args.auth)
+  if os.path.islink(args.thing_to_edit):
+    exit("you can't edit a symlink, sorry")
+
+  if (os.path.exists(args.thing_to_edit) and
+          not os.path.isfile(args.thing_to_edit) and
+          not os.path.isdir(args.thing_to_edit)):
+    exit('sorry, you can\'t edit a special file')
+
+  if not os.path.exists(args.thing_to_edit):
+    if args.create_file:
+      with open(args.thing_to_edit, 'at'): pass
+      assert(os.path.exists(args.thing_to_edit))
+    else:
+      exit('you can only edit something that exists, please; or pass --create-file to edit a single file and create it if it doesn\'t exist yet')
+
+  if args.create_file and os.path.isdir(args.thing_to_edit):
+    exit('sorry, --create-file is incompatible with editing a directory')
+
+  if os.path.isfile(args.thing_to_edit) and not editable_as_text(args.thing_to_edit):
+    exit('sorry, this editor would be likely to corrupt newlines or nulls in binary files')
+
+  hilariously_edit('localhost', 3419, args.thing_to_edit, args.auth)
 
 if __name__ == '__main__':
   main()

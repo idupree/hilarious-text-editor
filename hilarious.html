@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hi</title>
+  <title>Hilarious Editor</title>
   <style>
 /* CSS reset */
 html,body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,button,textarea,select,p,blockquote,th,td{margin:0;padding:0}
@@ -31,7 +31,8 @@ html,body {
   background-color: #cfe;
 }
 #bar > div {
-  margin: 1em 0;
+  margin-top: 1em;
+  margin-bottom: 1em;
 }
 #linenos {
   background-color: #fce;
@@ -86,6 +87,23 @@ html,body {
   margin-top: 0.5em;
   height: 2em;
 }
+#context_name {
+  padding: 0.5em;
+  font-weight: bold;
+  word-wrap: break-word;
+  margin-left: 2em;
+  text-indent: -2em;
+}
+#editable_files > a {
+  display: block;
+  padding: 0.5em; /* expand the click target by using padding */
+}
+#editable_files > a.current-file {
+  font-weight: bold;
+}
+#notes {
+  padding: 2.5em 0.5em 0;
+}
   </style>
 </head>
 <body
@@ -106,6 +124,8 @@ if(window.console === undefined) {
 var editor = document.getElementById('editor');
 var save_status = document.getElementById('save-status');
 
+var current_file = null;
+
 function cachebuster() {
   return '' + Date.now() + Math.random();
 }
@@ -113,6 +133,14 @@ function cachebuster() {
 var auth_token = "";
 //var auth_token = "hiii";
 //var auth_token = prompt("token?");
+
+function auth_headers() {
+  return {
+    'X-Please-Believe-I-Am-Not-Cross-Domain': 'yes',
+    'X-Token': auth_token
+  }
+}
+
 function test_auth(callback) {
   var req = new XMLHttpRequest();
   req.onreadystatechange = function() {
@@ -205,7 +233,7 @@ function all_done_saving() {
   save_req = null;
   $(save_status).empty();
 }
-// always call debounced_save() instead of this
+// call debounced_save() instead of this
 // to make sure we don't try to start saving while the user's
 // typing
 function try_save() {
@@ -241,6 +269,9 @@ function try_save() {
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
   req.setRequestHeader('X-Token', auth_token);
   req.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
+  if(current_file != null) {
+    req.setRequestHeader('X-File', current_file);
+  }
   req.send(editor.value);
 }
 var debounced_save = _.debounce(try_save, 2500);
@@ -347,23 +378,76 @@ if(ch_is_broken) {
   });
 }
 
-function load() {
-  var req = new XMLHttpRequest();
-  function got_contents() {
-    if(req.readyState === 4) { // complete
-      if(req.status === 200) {
-        editor.value = req.responseText;
-        latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
-        adjust_editor_height();
-        editor.focus();
+function wrappable_file_name_html(f) {
+  // Dot is sometimes used as a separator but sometimes as an extension,
+  // and it would look poor to wrap at short extensions,
+  // so only wrap at '.' when there are enough characters after it.
+  // Wrap after regular separators and before dots for aesthetic reasons.
+  return _.escape(f).replace(/(?:[-_\/]|(?=\..{6}))/g, '$&<wbr>');
+}
+
+function load_status() {
+  $.ajax({
+    url: '/status?'+cachebuster(),
+    method: 'POST',
+    headers: auth_headers(),
+    success: function(data) {
+      console.log(data);
+      var title = data.context_name;
+      if(current_file != null) {
+        title += '/' + current_file;
       }
+      $('title').text(title);
+      $('#context_name').html(wrappable_file_name_html(data.context_name));
+      $('#editable_files').empty();
+      _.each(data.editable_files, function(f) {
+        var $a = $('<a/>').attr('href', '#'+f).html(wrappable_file_name_html(f));
+        if(f === current_file) {
+          $a.addClass('current-file');
+        }
+        $('#editable_files').append($a);
+      });
+    }
+  });
+}
+
+$('#editable_files').on('click', 'a', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  var f = $(this).text();
+  console.log(f);
+  load(f);
+});
+
+
+function load(f) {
+  if(f !== current_file) {
+    if(trying_to_save) {
+      try_save();
+      // try again in 300ms, otherwise let the user click again...
+      setTimeout(function() {
+        if(!trying_to_save()) {
+          load(f);
+        }
+      }, 300);
+    } else {
+      $.ajax({
+         url: '/get_file_contents?'+cachebuster(),
+         method: 'POST',
+         headers: _.assign(
+           ((f != null) ? { 'X-File': f } : {}),
+           auth_headers()),
+         success: function(data) {
+           editor.value = data;
+           current_file = f;
+           latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
+           adjust_editor_height();
+           editor.focus();
+           load_status();
+         }
+      });
     }
   }
-  req.onreadystatechange = got_contents;
-  req.open('POST', '/get_file_contents?'+cachebuster(), true)
-  req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
-  req.setRequestHeader('X-Token', auth_token);
-  req.send(null);
 }
 
 function get_token() {
@@ -374,6 +458,7 @@ function get_token() {
       token_field.removeEventListener('input', got_input);
       token_field.value = '';
       document.body.removeChild(document.getElementById('ask-for-token'))
+      load_status();
       load();
     });
   };
