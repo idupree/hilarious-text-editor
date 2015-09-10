@@ -335,7 +335,7 @@ def copy_to_clipboard(text):
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='stdout')
+  parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='copy-and-stdout')
   parser.add_argument('--create-file', action='store_true')
   parser.add_argument('thing_to_edit', nargs='?', default=default_default_edited_filename)
   args = parser.parse_args()
