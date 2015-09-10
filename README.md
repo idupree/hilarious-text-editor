@@ -2,7 +2,8 @@
 Overview
 ===
 hilarious-text-editor lets you edit text files in a web browser.
-It autosaves every few seconds.
+It autosaves every few seconds.  You need to install Python 3.4
+or higher before you can run it.
 
 ./hilarious.py --help
 
@@ -17,10 +18,10 @@ have a secret authentication token in your clipboard you can paste in
 to start editing. (See Security below for why there's a secret.)
 
 I wrote this because Dragon NaturallySpeaking is pretty effective at
-controlling HTML &lt;textarea&gt;s in IE 11, and my friends need a text editor
-for their code that has fewer misfeatures for the purposes of code editing
-than DragonPad or Microsoft Word. This might be useful for other things
-but that's the main purpose so far.
+controlling HTML &lt;textarea&gt;s in IE 11.  My friends wanted a text editor
+for coding with Dragon that has fewer misfeatures for that purpose
+than DragonPad or Microsoft Word. If you have another use for this editor,
+I'd love to hear about it! Or even if you are using it for this purpose!
 
 The editor could integrate something like http://ace.c9.io/ as an editor,
 but it probably won't because Dragon gets a little confused by the
