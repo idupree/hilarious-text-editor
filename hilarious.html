@@ -152,7 +152,7 @@ function auth_headers() {
   }
 }
 
-function test_auth(callback) {
+function test_auth(callback, failure_callback) {
   var req = new XMLHttpRequest();
   req.onreadystatechange = function() {
     if(req.readyState === 4) { // complete
@@ -161,6 +161,7 @@ function test_auth(callback) {
         if(callback) { callback(); }
       } else if(req.status >= 400 && req.status < 500) {
         console.log("boo!");
+        if(failure_callback) { failure_callback(); }
       }
     }
   };
@@ -512,15 +513,28 @@ function load(f) {
 
 function get_token() {
   var token_field = document.getElementById('token');
-  function got_input() {
+  var done = false;
+  function got_input(recur) {
+    if(done){return;}
     auth_token = token_field.value;
     test_auth(function() {
-      token_field.removeEventListener('input', got_input);
-      token_field.value = '';
-      document.body.removeChild(document.getElementById('ask-for-token'))
-      load_status();
-      load();
-    });
+        if(done){return;}
+        done = true;
+        token_field.removeEventListener('input', got_input);
+        token_field.value = '';
+        document.body.removeChild(document.getElementById('ask-for-token'))
+        load_status();
+        load();
+      },
+      // try again a short while later, because sometimes
+      // the 'input' event arrives before the text does,
+      // apparently (at least in Firefox 40 on Linux,
+      // pasting into the text field).
+      (recur ? undefined : function() {
+        setTimeout(function() {
+          got_input(true);
+        }, 100);
+    }));
   };
   got_input(); // in case no token is required (todo, serve different html in that case instead?)
   token_field.addEventListener('input', got_input);
