@@ -518,6 +518,7 @@ function load(f) {
          success: function(data) {
            editor.blur();
            editor.value = data;
+           editor.setSelectionRange(0, 0);
            fix_reflow_bugs();
            current_file = f;
            latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
