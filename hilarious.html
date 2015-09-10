@@ -358,6 +358,12 @@ function compute_line_numbers(editor_width) {
   var old_linenos_text = $linenos.text();
   if(old_linenos_text !== s) {
     $linenos.text(s);
+    fix_reflow_bugs();
+    // Just in case we missed something in adjust_editor_height(),
+    // here's a related computation:
+    if($linenos.height() > $(editor).height()) {
+      editor.style.height = $linenos.height() + 'px';
+    }
   }
 }
 var debounced_compute_line_numbers = _.debounce(compute_line_numbers, 50);
