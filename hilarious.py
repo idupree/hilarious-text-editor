@@ -65,6 +65,9 @@ def create_token():
 # http://stackoverflow.com/a/7392391
 textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
 def editable_as_text(fname):
+  # files that are too large are not practically editable here, sorry
+  if os.path.getsize(fname) > 1000000:
+    return False
   with open(fname, 'rb') as f:
     # The translate() deletes every character in its second argument
     # leaving only "binary-only" characters.
@@ -358,7 +361,7 @@ def main():
     exit('sorry, --create-file is incompatible with editing a directory')
 
   if os.path.isfile(args.thing_to_edit) and not editable_as_text(args.thing_to_edit):
-    exit('sorry, this editor would be likely to corrupt newlines or nulls in binary files')
+    exit('sorry, this editor would be likely to corrupt newlines or nulls in binary files (or be too slow on too-large files)')
 
   hilariously_edit('localhost', 3419, args.thing_to_edit, args.auth)
 

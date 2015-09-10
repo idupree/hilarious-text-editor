@@ -110,7 +110,7 @@ html,body {
   ><div id="ask-for-token"><label><p>Token:</p><input type="password" id="token" autofocus></label></div
   ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
   ><div id="linenos"></div
-  ><textarea id="editor"></textarea>
+  ><textarea id="editor" spellcheck="false"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script>
@@ -438,6 +438,7 @@ function load(f) {
            ((f != null) ? { 'X-File': f } : {}),
            auth_headers()),
          success: function(data) {
+           editor.blur();
            editor.value = data;
            current_file = f;
            latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
