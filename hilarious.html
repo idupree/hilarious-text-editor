@@ -471,10 +471,22 @@ $('#editable_files').on('click', 'a', function(e) {
 // (tested on Firefox 40 on Linux).
 function fix_reflow_bugs() {
   if(navigator.userAgent.indexOf('Gecko/') !== -1) {
+    // say hi to the event loop before doing this,
+    // so that it works (apparently)
     setTimeout(function(){
+      // save and restore selection
+      var selstart = editor.selectionStart;
+      var selend = editor.selectionEnd;
+      var seldir = editor.selectionDirection;
+      // Make a type of change that will avoid Firefox's
+      // optimizations where it detects whether anything
+      // happened to the textarea, and does nothing if
+      // it thinks nothing happened.
       var val = editor.value;
       editor.value = ' '+val;
       editor.value = val;
+      // restore selection
+      editor.setSelectionRange(selstart, selend, seldir);
     }, 0);
   }
 }
