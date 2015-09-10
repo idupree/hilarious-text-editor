@@ -28,6 +28,7 @@
 import os, sys, time, re, hashlib, random, math
 from os.path import join, abspath, relpath
 import socket, socketserver, http.server
+import subprocess
 import json
 import argparse
 
@@ -302,35 +303,26 @@ def hilariously_edit(server_host, server_port, path, auth_type):
              request_handler(server_origin, path, auth_token))
   server.serve_forever()
 
-# debian separates out tkinter into the package python3-tk,
-# and it's only used for some command line options anyway,
-# so don't assume we can import it.
-#
-# (This implementation behaved a little weirdly on my Linux X11 - oh well
-# - there are also command line ways to copy if I cared, I think)
-try:
-  from tkinter import Tk, TclError
-  # https://stackoverflow.com/questions/4308152/platform-independent-tool-to-copy-text-to-clipboard
-  def copy_to_clipboard(text):
-    text = str(text)
-    # Tk() won't work on a headless server without DISPLAY for example:
+def copy_to_clipboard(text):
+  success = False
+  for clip_cmd in [
+      # OS X
+      ['pbcopy'],
+      # Windows
+      ['clip'],
+      # X11
+      ['xclip', '-selection', 'clipboard'],
+      ['xclip', '-selection', 'primary']
+      ]:
     try:
-      r = Tk()
-      r.withdraw() # don't automatically make a window
-      #old_val = r.clipboard_get()
-      r.clipboard_clear()
-      r.clipboard_append(text)
-      r.destroy()
-      #def restore_old_val():
-      #  r.clipboard_clear()
-      #  r.clipboard_append(old_val)
-      #return restore_old_val
-      return True
-    except TclError:
-      return False
-except ImportError:
-  def copy_to_clipboard(text):
-    return False
+      p = subprocess.Popen(clip_cmd, stdin=subprocess.PIPE)
+      p.stdin.write(text.encode('utf-8'))
+      p.stdin.close()
+      # a guess; we don't actually wait for the clip_cmd to finish
+      success = True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+      pass
+  return success
 
 def main():
   parser = argparse.ArgumentParser()
