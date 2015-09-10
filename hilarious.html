@@ -17,10 +17,15 @@ html,body {
   font-family: "Courier New", Courier, monospace;
   font-size: 10px;
   line-height: 1;
+  white-space: nowrap;
 }
 
+#bar, #linenos, #editor {
+  display: inline-block;
+  vertical-align: top;
+  white-space: normal;
+}
 #bar {
-  float: left;
   min-height: 100%;
   width: 20em;
   background-color: #cfe;
@@ -29,8 +34,6 @@ html,body {
   margin: 1em 0;
 }
 #linenos {
-  float: left;
-  min-height: 100%;
   background-color: #fce;
   text-align: right;
   padding: 0 1px;
@@ -48,7 +51,6 @@ html,body {
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
-  float: left;
   resize: none;
   overflow: hidden;
   border-width: 0px;
@@ -86,11 +88,11 @@ html,body {
 }
   </style>
 </head>
-<body>
-  <div id="ask-for-token"><label><p>Token:</p><input type="password" id="token" autofocus></label></div>
-  <div id="bar"><div id="save-status"></div><div>Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div>
-  <div id="linenos"></div>
-  <textarea id="editor"></textarea>
+<body
+  ><div id="ask-for-token"><label><p>Token:</p><input type="password" id="token" autofocus></label></div
+  ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
+  ><div id="linenos"></div
+  ><textarea id="editor"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script>
