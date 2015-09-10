@@ -49,15 +49,15 @@ html,body {
   color: #00f;
 }
 #editor {
+  margin-bottom: 1em;
+}
+#editor, #testline {
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
   resize: none;
   overflow: hidden;
   border-width: 0px;
-  margin-bottom: 1em;
-}
-#editor, #testline {
   white-space: pre-wrap;
   width: 80ch;
   /*
@@ -71,6 +71,7 @@ html,body {
   visibility: hidden;
   position: absolute;
   left: -1000px;
+  height: 1px;
 }
 #ask-for-token {
   position: fixed;
@@ -120,7 +121,7 @@ html,body {
   ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
   ><div id="linenos"></div
   ><textarea id="editor" spellcheck="false"></textarea>
-  <div id="testline"></div>
+  <textarea id="testline"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script>
@@ -341,7 +342,7 @@ function compute_line_numbers(editor_width) {
       // (It's probably too slow and probably unnecessary to call it
       // all the time.)
       $testline.text(line);
-      var lines = Math.round($testline.height() / line_height);
+      var lines = Math.round($testline.prop('scrollHeight') / line_height);
       //console.log(lineno, line.length, lines);
     }
     s += lineno;
