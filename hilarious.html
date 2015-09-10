@@ -138,6 +138,9 @@ var $editor_and_testline = $('#editor, #testline');
 
 var current_file = null;
 
+// indexed by file name:
+var remembered_selections = {};
+
 function cachebuster() {
   return '' + Date.now() + Math.random();
 }
@@ -516,11 +519,26 @@ function load(f) {
            ((f != null) ? { 'X-File': f } : {}),
            auth_headers()),
          success: function(data) {
+           if(current_file != null) {
+             remembered_selections[current_file] = {
+               selectionStart: editor.selectionStart,
+               selectionEnd: editor.selectionEnd,
+               selectionDirection: editor.selectionDirection
+             };
+           }
            editor.blur();
-           editor.value = data;
-           editor.setSelectionRange(0, 0);
-           fix_reflow_bugs();
            current_file = f;
+           editor.value = data;
+           if(remembered_selections[current_file]) {
+             editor.setSelectionRange(
+               remembered_selections[current_file].selectionStart,
+               remembered_selections[current_file].selectionEnd,
+               remembered_selections[current_file].selectionDirection
+             );
+           } else {
+             editor.setSelectionRange(0, 0);
+           }
+           fix_reflow_bugs();
            latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
            adjust_editor_height();
            editor.focus();
