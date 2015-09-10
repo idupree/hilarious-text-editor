@@ -52,10 +52,13 @@ html,body {
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
-  white-space: pre-wrap;
   resize: none;
   overflow: hidden;
   border-width: 0px;
+  margin-bottom: 1em;
+}
+#editor, #testline {
+  white-space: pre-wrap;
   width: 80ch;
   /*
     word-break is maybe not the most aesthetic, but it makes it easy to 
@@ -63,6 +66,11 @@ html,body {
     how much whitespace they have, so we'll go with it for now
   */
   word-break: break-all;
+}
+#testline {
+  visibility: hidden;
+  position: absolute;
+  left: -1000px;
 }
 #ask-for-token {
   position: fixed;
@@ -112,6 +120,7 @@ html,body {
   ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
   ><div id="linenos"></div
   ><textarea id="editor" spellcheck="false"></textarea>
+  <div id="testline"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script>
@@ -305,15 +314,41 @@ function editor_input() {
 
 function compute_line_numbers(editor_width) {
   var s = '';
+  var line_height = +$(editor).css('line-height').replace(/px$/, '');
+  var $testline = $('#testline');
   _.each(editor.value.split('\n'), function(line, idx) {
-    var lines = Math.max(1, Math.ceil(line.length / 80));
     var lineno = idx + 1;
+    // This len/80 version didn't work in some weird cases with long lines
+    // where the browsers decide to wrap the lines earlier
+    // than the 80th character.  The details seem hard to predict
+    // and vary from browser to browser.  (Sometimes for example
+    // the browser tries to prevent a displayed-line from beginning
+    // with a space character, I think based on experimenting.
+    // But it wasn't very consistent.)  In theory "word-break: break-all;"
+    // should make them not do that, I think... but in practice,
+    // that only works *almost* all the time, not all the time.
+    //
+    // var lines = Math.max(1, Math.ceil(line.length / 80));
+    if(line.length <= 80) {
+      var lines = 1;
+    } else {
+      // This works more often than the len/80 version, although
+      // it still misses a few cases -- at least cases that are
+      // fixed by fix_reflow_bugs() so it's important that
+      // fix_reflow_bugs gets called when loading a new document.
+      // (It's probably too slow and probably unnecessary to call it
+      // all the time.)
+      $testline.text(line);
+      var lines = Math.round($testline.height() / line_height);
+      //console.log(lineno, line.length, lines);
+    }
     s += lineno;
     while(lines > 0) {
       s += '\n';
       --lines;
     }
   });
+  $testline.empty();
   var $linenos = $('#linenos');
   // It's probably faster not to modify the DOM if there's no change.
   // And there's usually no change.
@@ -420,6 +455,27 @@ $('#editable_files').on('click', 'a', function(e) {
   load(f);
 });
 
+// Firefox has a text wrapping bug on very long lines sometimes
+// (try an SVG)
+// where it doesn't even realize that it's reporting a
+// scrollHeight value that is lower than it should be.
+// It wrapped some lines earlier/more than it usually does and
+// forgot about that.  It forgot so thoroughly that I haven't
+// yet found a way to check directly whether I need to trigger
+// the reflow or not, so do it all the time (despite that it
+// wastes a bit of time).
+//
+// Somehow, this code triggers a reflow that fixes it
+// (tested on Firefox 40 on Linux).
+function fix_reflow_bugs() {
+  if(navigator.userAgent.indexOf('Gecko/') !== -1) {
+    setTimeout(function(){
+      var val = editor.value;
+      editor.value = ' '+val;
+      editor.value = val;
+    }, 0);
+  }
+}
 
 function load(f) {
   if(f !== current_file) {
@@ -441,6 +497,7 @@ function load(f) {
          success: function(data) {
            editor.blur();
            editor.value = data;
+           fix_reflow_bugs();
            current_file = f;
            latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
            adjust_editor_height();
