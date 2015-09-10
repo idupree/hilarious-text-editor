@@ -282,20 +282,29 @@ def hilariously_edit(server_host, server_port, path, auth_type):
   server_ip = socket.gethostbyname(server_host)
   server_origin = 'http://' + server_host + ':' + str(server_port)
 
-  sys.stdout.write('\nGo to:\n' + server_origin + '/\n')
+  sys.stdout.write('\nGo to:\n' + server_origin + '/\n\n')
   if auth_type in [None, 'none']:
     auth_token = None
   else:
     auth_token = create_token()
     auth_stdout = auth_type in ['stdout', 'copy-and-stdout']
+    clip_succeeded = False
     if auth_type in ['copy-or-stdout', 'copy-and-stdout', 'copy']:
       clip_result = copy_to_clipboard(auth_token)
-      if clip_result == False:
-        sys.stderr.write('Copy failed\n')
+      clip_succeeded = (clip_result != False)
       if auth_type in ['copy-or-stdout']:
-        auth_stdout = (clip_result == False)
+        auth_stdout = not clip_succeeded
+      if clip_succeeded:
+        if auth_stdout:
+          sys.stderr.write('Token has been copied to clipboard:\n')
+        else:
+          sys.stderr.write('Token has been copied to clipboard\n')
+      else:
+        sys.stderr.write('Copy failed\n')
     if auth_stdout:
-      sys.stdout.write('\nCopy this auth token:\n' + auth_token + '\n')
+      if not clip_succeeded:
+        sys.stdout.write('Copy this auth token:\n')
+      sys.stdout.write(auth_token + '\n')
   sys.stdout.flush()
 
   server = ThreadingHTTPServer(
