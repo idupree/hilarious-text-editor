@@ -507,7 +507,7 @@ function load(f) {
       try_save();
       // try again in 300ms, otherwise let the user click again...
       setTimeout(function() {
-        if(!trying_to_save()) {
+        if(!trying_to_save) {
           load(f);
         }
       }, 300);
