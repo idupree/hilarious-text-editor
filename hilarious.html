@@ -136,10 +136,15 @@ var editor = document.getElementById('editor');
 var save_status = document.getElementById('save-status');
 var $editor_and_testline = $('#editor, #testline');
 
-var current_file = null;
+var state = {
+  current_file: null,
 
-// indexed by file name:
-var remembered_selections = {};
+  // filename: true
+  editable_files: {},
+
+  // filename: { selectionStart: _, selectionEnd: _, selectionDirection: _}
+  remembered_selections: {}
+};
 
 var intended_editor_width = 80;
 
@@ -287,8 +292,8 @@ function try_save() {
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
   req.setRequestHeader('X-Token', auth_token);
   req.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
-  if(current_file != null) {
-    req.setRequestHeader('X-File', current_file);
+  if(state.current_file != null) {
+    req.setRequestHeader('X-File', state.current_file);
   }
   req.send(editor.value);
 }
@@ -434,6 +439,51 @@ function wrappable_file_name_html(f) {
   return _.escape(f).replace(/(?:[-_\/]|(?=\..{6}))/g, '$&<wbr>');
 }
 
+// A "set" here is an object with every key/value pair having
+// the 'value' be 'true'. Underscore.js's set operations on arrays
+// have poor asymptotic speed.
+function to_set(enumerable) {
+  var result = {};
+  _.each(enumerable, function(member) {
+    if(!_.isString(member) && !_.isNumber(member)) {
+      throw("Bad type in conversion to set." +
+               (_.isBoolean(member) ? " Is it already a set?" : ""));
+    }
+    result[member] = true;
+  });
+  return result;
+}
+function set_difference(minuend, subtrahend) {
+  var result = {};
+  _.each(minuend, function(member) {
+    if(!subtrahend[member]) {
+      result[member] = true;
+    }
+  });
+  return result;
+}
+function set_sorted(set) {
+  return _.sortBy(_.keys(set))
+}
+function set_size(set) {
+  return _.size(set);
+}
+
+function load_editable_files_dom() {
+  var $editable_files = $('#editable_files');
+  $editable_files.empty();
+  _.each(set_sorted(state.editable_files), function(f) {
+    var $a = $('<a/>').attr({
+        'href': '#'+f,
+        'data-filename': f
+      }).html(wrappable_file_name_html(f));
+    if(f === state.current_file) {
+      $a.addClass('current-file');
+    }
+    $editable_files.append($a);
+  });
+}
+
 function load_status() {
   $.ajax({
     url: '/status?'+cachebuster(),
@@ -442,19 +492,17 @@ function load_status() {
     success: function(data) {
       console.log(data);
       var title = data.context_name;
-      if(current_file != null) {
-        title += '/' + current_file;
+      if(state.current_file != null) {
+        title += '/' + state.current_file;
       }
       $('title').text(title);
       $('#context_name').html(wrappable_file_name_html(data.context_name));
-      $('#editable_files').empty();
-      _.each(data.editable_files, function(f) {
-        var $a = $('<a/>').attr('href', '#'+f).html(wrappable_file_name_html(f));
-        if(f === current_file) {
-          $a.addClass('current-file');
-        }
-        $('#editable_files').append($a);
-      });
+      var all_old_files = state.editable_files;
+      var all_new_files = to_set(data.editable_files);
+      if(!_.isEqual(all_old_files, all_new_files)) {
+        state.editable_files = all_new_files;
+        load_editable_files_dom();
+      }
     }
   });
 }
@@ -462,7 +510,7 @@ function load_status() {
 $('#editable_files').on('click', 'a', function(e) {
   e.preventDefault();
   e.stopPropagation();
-  var f = $(this).text();
+  var f = $(this).attr('data-filename');
   console.log(f);
   load(f);
 });
@@ -502,7 +550,7 @@ function fix_reflow_bugs() {
 }
 
 function load(f) {
-  if(f !== current_file) {
+  if(f !== state.current_file) {
     if(trying_to_save) {
       try_save();
       // try again in 300ms, otherwise let the user click again...
@@ -519,21 +567,21 @@ function load(f) {
            ((f != null) ? { 'X-File': f } : {}),
            auth_headers()),
          success: function(data) {
-           if(current_file != null) {
-             remembered_selections[current_file] = {
+           if(state.current_file != null) {
+             state.remembered_selections[state.current_file] = {
                selectionStart: editor.selectionStart,
                selectionEnd: editor.selectionEnd,
                selectionDirection: editor.selectionDirection
              };
            }
            editor.blur();
-           current_file = f;
+           state.current_file = f;
            editor.value = data;
-           if(remembered_selections[current_file]) {
+           if(state.remembered_selections[f]) {
              editor.setSelectionRange(
-               remembered_selections[current_file].selectionStart,
-               remembered_selections[current_file].selectionEnd,
-               remembered_selections[current_file].selectionDirection
+               state.remembered_selections[f].selectionStart,
+               state.remembered_selections[f].selectionEnd,
+               state.remembered_selections[f].selectionDirection
              );
            } else {
              editor.setSelectionRange(0, 0);
