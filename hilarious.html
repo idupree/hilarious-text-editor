@@ -137,6 +137,8 @@ var save_status = document.getElementById('save-status');
 var $editor_and_testline = $('#editor, #testline');
 
 var state = {
+  auth_token: '',
+
   current_file: null,
 
   // filename: true
@@ -152,14 +154,10 @@ function cachebuster() {
   return '' + Date.now() + Math.random();
 }
 
-var auth_token = "";
-//var auth_token = "hiii";
-//var auth_token = prompt("token?");
-
 function auth_headers() {
   return {
     'X-Please-Believe-I-Am-Not-Cross-Domain': 'yes',
-    'X-Token': auth_token
+    'X-Token': state.auth_token
   };
 }
 
@@ -178,7 +176,7 @@ function test_auth(callback, failure_callback) {
   };
   req.open('POST', '/test_post_works?'+cachebuster(), true);
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
-  req.setRequestHeader('X-Token', auth_token);
+  req.setRequestHeader('X-Token', state.auth_token);
   req.send(null);
 }
 
@@ -290,7 +288,7 @@ function try_save() {
   req.open('POST', '/save?'+cachebuster(), true);
   req.timeout = req_timeout;
   req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
-  req.setRequestHeader('X-Token', auth_token);
+  req.setRequestHeader('X-Token', state.auth_token);
   req.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
   if(state.current_file != null) {
     req.setRequestHeader('X-File', state.current_file);
@@ -602,7 +600,7 @@ function get_token() {
   var done = false;
   function got_input(recur) {
     if(done){return;}
-    auth_token = token_field.value;
+    state.auth_token = token_field.value;
     test_auth(function() {
         if(done){return;}
         done = true;
