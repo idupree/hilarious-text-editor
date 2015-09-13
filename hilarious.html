@@ -162,22 +162,13 @@ function auth_headers() {
 }
 
 function test_auth(callback, failure_callback) {
-  var req = new XMLHttpRequest();
-  req.onreadystatechange = function() {
-    if(req.readyState === 4) { // complete
-      if(req.status === 200 || req.status === 204) {
-        console.log("yay");
-        if(callback) { callback(); }
-      } else if(req.status >= 400 && req.status < 500) {
-        console.log("boo!");
-        if(failure_callback) { failure_callback(); }
-      }
-    }
-  };
-  req.open('POST', '/test_post_works?'+cachebuster(), true);
-  req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
-  req.setRequestHeader('X-Token', state.auth_token);
-  req.send(null);
+  $.ajax({
+    url: '/test_post_works?'+cachebuster(),
+    method: 'POST',
+    headers: auth_headers(),
+    success: callback,
+    failure: failure_callback
+  });
 }
 
 
