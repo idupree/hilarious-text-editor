@@ -133,6 +133,15 @@ html,body {
 (function(){
 "use strict";
 
+var reload_page_as_needed_for_dragon_naturallyspeaking = true;
+function reload_soon_for_dragon_naturallyspeaking() {
+  if(reload_page_as_needed_for_dragon_naturallyspeaking) {
+    setTimeout(function(){
+      reload_while_keeping_state();
+    }, 0);
+  }
+}
+
 if(window.console === undefined) {
   window.console = { log: function() {} };
 }
@@ -545,6 +554,8 @@ function load_status() {
       if(!_.isEqual(all_old_files, all_new_files)) {
         state.editable_files = all_new_files;
         display_editable_files();
+        // links need to be created before DOMReady
+        reload_soon_for_dragon_naturallyspeaking();
       }
     }
   });
@@ -653,6 +664,9 @@ function load(f) {
            $(editor).focus();
            display_which_file_is_current();
            load_status();
+
+           // textareas need to be created before DOMReady
+           reload_soon_for_dragon_naturallyspeaking();
          }
       });
     }
