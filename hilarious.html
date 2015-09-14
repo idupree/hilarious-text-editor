@@ -20,7 +20,7 @@ html,body {
   white-space: nowrap;
 }
 
-#bar, #linenos, #editor {
+#bar, #linenos, #textarea_container, #textarea_container > textarea {
   display: inline-block;
   vertical-align: top;
   white-space: normal;
@@ -51,7 +51,7 @@ html,body {
 #editor {
   margin-bottom: 1em;
 }
-#editor, #testline {
+#textarea_container > textarea, #testline {
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
@@ -59,13 +59,18 @@ html,body {
   overflow: hidden;
   border-width: 0px;
   white-space: pre-wrap;
-  width: 80ch;
   /*
     word-break is maybe not the most aesthetic, but it makes it easy to 
     compute where the line numbers go, and easy for the users to see
     how much whitespace they have, so we'll go with it for now
   */
   word-break: break-all;
+}
+#textarea_container, #testline {
+  width: 80ch;
+}
+#textarea_container > textarea {
+  width: 100%;
 }
 #testline {
   visibility: hidden;
@@ -120,7 +125,7 @@ html,body {
   ><div id="ask-for-token" style="display: none;"><label><p>Token:</p><input type="password" id="token"></label></div
   ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
   ><div id="linenos"></div
-  ><textarea id="editor" spellcheck="false"></textarea>
+  ><div id="textarea_container"></div>
   <textarea id="testline"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
@@ -132,9 +137,8 @@ if(window.console === undefined) {
   window.console = { log: function() {} };
 }
 
-var editor = document.getElementById('editor');
+var editor = null;
 var save_status = document.getElementById('save-status');
-var $editor_and_testline = $('#editor, #testline');
 
 var state = {
   auth_token: '',
@@ -171,6 +175,41 @@ function test_auth(callback, failure_callback) {
     success: callback,
     failure: failure_callback
   });
+}
+
+function set_textarea_contents(text) {
+  // goal:
+  // delete the undo history
+  // this means (at least for firefox) that
+  // we need to create an entirely new textarea
+  // which initially has the initial contents we
+  // want it to have.
+  // Use jQuery to create the new textarea so that
+  // it can do what it can to work around browsers
+  // deleting spaces or such.
+  // Create a new id= attr value in case anything
+  // is tracking it by id; we need those to see it
+  // as a new thing.
+  // Initialize all those attrs in the initial creation,
+  // and create it outside of a call to $('#textarea_container').html(...),
+  // just in case that makes more things see it as a different
+  // textarea than the previous one.
+  if(editor != null) {
+    $(editor).remove();
+  }
+
+  var new_textarea = $(
+    '<textarea' +
+      ' id="' + _.uniqueId('textarea_') + '"' +
+      ' spellcheck="false"' +
+      '>' +
+      _.escape(text) +
+      '</textarea>'
+      )[0];
+
+  $('#textarea_container').append(new_textarea);
+
+  editor = new_textarea;
 }
 
 
@@ -364,7 +403,7 @@ function compute_line_numbers() {
 }
 var debounced_compute_line_numbers = _.debounce(compute_line_numbers, 50);
 
-editor.addEventListener('input', editor_input);
+$('#textarea_container').on('input', 'textarea', editor_input);
 
 function repeat(str, count) {
   if(str.repeat) {
@@ -389,7 +428,7 @@ function repeat(str, count) {
 
 function fix_ch_unit() {
   var fix_needed = false;
-  var font_size_str = $(editor).css('font-size');
+  var font_size_str = $('#testline').css('font-size');
   var font_size = +font_size_str.replace(/px$/, '');
   var zeroes = repeat('0', intended_editor_width);
   var $a = $('<div/>').text(zeroes).css({'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
@@ -404,7 +443,7 @@ function fix_ch_unit() {
     // because that's sometimes needed.
     var new_width = ($a.width()/font_size + 0.1)+'em';
     console.log('working around poor implementation of "ch" unit: editor now '+new_width);
-    $editor_and_testline.css('width', new_width);
+    $('#textarea_container, #testline').css('width', new_width);
     fix_needed = true;
   }
   $a.remove();
@@ -599,12 +638,14 @@ function load(f) {
            ((f != null) ? { 'X-File': f } : {}),
            auth_headers()),
          success: function(data) {
-           save_selection_location();
-           $(editor).blur();
+           if(editor != null) {
+             save_selection_location();
+             $(editor).blur();
+           }
            state.current_file = f;
            latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
 
-           editor.value = data;
+           set_textarea_contents(data);
            adjust_editor_height();
            restore_selection_location();
            fix_reflow_bugs();
@@ -650,8 +691,10 @@ function get_token() {
 }
 
 function reload_while_keeping_state(force_reload_html_from_server) {
-  save_selection_location();
-  state.textarea_value = editor.value;
+  if(editor != null) {
+    save_selection_location();
+    state.textarea_value = editor.value;
+  }
   sessionStorage.setItem('hilarious_editor_state', JSON.stringify(state));
   location.reload(force_reload_html_from_server);
 }
@@ -663,15 +706,19 @@ var stateJSON;
 if(stateJSON = sessionStorage.getItem('hilarious_editor_state')) {
   sessionStorage.removeItem('hilarious_editor_state');
   state = JSON.parse(stateJSON);
-  editor.value = state.textarea_value;
-  delete state.textarea_value;
-  adjust_editor_height();
-  restore_selection_location();
-  fix_reflow_bugs();
+  if(state.textarea_value != null) {
+    set_textarea_contents(state.textarea_value);
+    delete state.textarea_value;
+    adjust_editor_height();
+    restore_selection_location();
+    fix_reflow_bugs();
+  }
   display_context_name();
   display_editable_files();
   $('#ask-for-token').remove();
-  $(editor).focus();
+  if(editor != null) {
+    $(editor).focus();
+  }
 } else {
   get_token();
 }
