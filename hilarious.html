@@ -251,7 +251,6 @@ function all_done_saving() {
 function try_save() {
   // is 30 seconds enough for saving??
   var req_timeout = 30000;
-  var req = new XMLHttpRequest();
   if(save_req !== null) {
     if(last_sync_attempt + req_timeout < Date.now()) {
       save_req.abort();
@@ -259,32 +258,29 @@ function try_save() {
       return;
     }
   }
-  save_req = req;
   last_sync_attempt = Date.now();
   starting_saving();
-  function ack() {
-    if(req.readyState === 4) { // complete
-      if(req.status === 200 || req.status === 204) {
-        latest_time_that_the_server_has_all_our_data = last_sync_success = last_sync_attempt;
-        save_req = null;
-        if(last_sync_success < last_edit) {
-          debounced_save();
-        } else {
-          all_done_saving();
-        }
+  var f = state.current_file;
+  var which_file_header = ((f != null) ? { 'X-File': f } : {});
+  save_req = $.ajax({
+    url: '/save?'+cachebuster(),
+    method: 'POST',
+    data: editor.value,
+    timeout: req_timeout,
+    headers: _.assign({},
+      {'Content-Type': 'text/plain; charset=utf-8'},
+      which_file_header,
+      auth_headers()),
+    success: function(data) {
+      latest_time_that_the_server_has_all_our_data = last_sync_success = last_sync_attempt;
+      save_req = null;
+      if(last_sync_success < last_edit) {
+        debounced_save();
+      } else {
+        all_done_saving();
       }
     }
-  }
-  req.onreadystatechange = ack;
-  req.open('POST', '/save?'+cachebuster(), true);
-  req.timeout = req_timeout;
-  req.setRequestHeader('X-Please-Believe-I-Am-Not-Cross-Domain', 'yes');
-  req.setRequestHeader('X-Token', state.auth_token);
-  req.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
-  if(state.current_file != null) {
-    req.setRequestHeader('X-File', state.current_file);
-  }
-  req.send(editor.value);
+  });
 }
 var debounced_save = _.debounce(try_save, 2500);
 
