@@ -117,7 +117,7 @@ html,body {
   </style>
 </head>
 <body
-  ><div id="ask-for-token" style="display: none;"><label><p>Token:</p><input type="password" id="token" autofocus></label></div
+  ><div id="ask-for-token" style="display: none;"><label><p>Token:</p><input type="password" id="token"></label></div
   ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
   ><div id="linenos"></div
   ><textarea id="editor" spellcheck="false"></textarea>
@@ -646,6 +646,7 @@ function get_token() {
   got_input(); // in case no token is required (todo, serve different html in that case instead?)
   token_field.addEventListener('input', got_input);
   $('#ask-for-token').show();
+  $('#token').focus();
 }
 
 function reload_while_keeping_state(force_reload_html_from_server) {
