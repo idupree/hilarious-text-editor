@@ -141,6 +141,8 @@ var state = {
 
   current_file: null,
 
+  context_name: '',
+
   // filename: true
   editable_files: {},
 
@@ -454,7 +456,7 @@ function set_size(set) {
   return _.size(set);
 }
 
-function load_editable_files_dom() {
+function display_editable_files() {
   var $editable_files = $('#editable_files');
   $editable_files.empty();
   _.each(set_sorted(state.editable_files), function(f) {
@@ -469,6 +471,27 @@ function load_editable_files_dom() {
   });
 }
 
+function display_context_name() {
+  var title = state.context_name;
+  if(state.current_file != null) {
+    title += '/' + state.current_file;
+  }
+  $('title').text(title);
+  $('#context_name').html(wrappable_file_name_html(state.context_name));
+}
+
+// (display_editable_files() does this implicitly, so no need to
+//  call this if you call that)
+function display_which_file_is_current() {
+  var $file_lines = $('#editable_files > a');
+  $file_lines.removeClass('current-file');
+  if(state.current_file != null) {
+    ($file_lines.
+      filter('[data-filename='+escape_for_css_selector_attr_value(state.current_file)+']').
+      addClass('current-file'));
+  }
+}
+
 function load_status() {
   $.ajax({
     url: '/status?'+cachebuster(),
@@ -476,17 +499,13 @@ function load_status() {
     headers: auth_headers(),
     success: function(data) {
       console.log(data);
-      var title = data.context_name;
-      if(state.current_file != null) {
-        title += '/' + state.current_file;
-      }
-      $('title').text(title);
-      $('#context_name').html(wrappable_file_name_html(data.context_name));
+      state.context_name = data.context_name;
+      display_context_name();
       var all_old_files = state.editable_files;
       var all_new_files = to_set(data.editable_files);
       if(!_.isEqual(all_old_files, all_new_files)) {
         state.editable_files = all_new_files;
-        load_editable_files_dom();
+        display_editable_files();
       }
     }
   });
@@ -534,6 +553,34 @@ function fix_reflow_bugs() {
   }
 }
 
+function escape_for_css_selector_attr_value(str) {
+  // see http://www.w3.org/TR/CSS21/syndata.html#strings
+  return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+function save_selection_location() {
+  // TODO: also store for the null file by calling it ''
+  // and not letting named files have the name ''.
+  if(state.current_file != null) {
+    state.remembered_selections[state.current_file] = {
+      selectionStart: editor.selectionStart,
+      selectionEnd: editor.selectionEnd,
+      selectionDirection: editor.selectionDirection
+    };
+  }
+}
+function restore_selection_location() {
+  if(state.remembered_selections[state.current_file]) {
+    editor.setSelectionRange(
+      state.remembered_selections[state.current_file].selectionStart,
+      state.remembered_selections[state.current_file].selectionEnd,
+      state.remembered_selections[state.current_file].selectionDirection
+    );
+  } else {
+    editor.setSelectionRange(0, 0);
+  }
+}
+
 function load(f) {
   if(f !== state.current_file) {
     if(trying_to_save) {
@@ -552,29 +599,18 @@ function load(f) {
            ((f != null) ? { 'X-File': f } : {}),
            auth_headers()),
          success: function(data) {
-           if(state.current_file != null) {
-             state.remembered_selections[state.current_file] = {
-               selectionStart: editor.selectionStart,
-               selectionEnd: editor.selectionEnd,
-               selectionDirection: editor.selectionDirection
-             };
-           }
-           editor.blur();
+           save_selection_location();
+           $(editor).blur();
            state.current_file = f;
-           editor.value = data;
-           if(state.remembered_selections[f]) {
-             editor.setSelectionRange(
-               state.remembered_selections[f].selectionStart,
-               state.remembered_selections[f].selectionEnd,
-               state.remembered_selections[f].selectionDirection
-             );
-           } else {
-             editor.setSelectionRange(0, 0);
-           }
-           fix_reflow_bugs();
            latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
+
+           editor.value = data;
            adjust_editor_height();
-           editor.focus();
+           restore_selection_location();
+           fix_reflow_bugs();
+
+           $(editor).focus();
+           display_which_file_is_current();
            load_status();
          }
       });
@@ -610,9 +646,37 @@ function get_token() {
   got_input(); // in case no token is required (todo, serve different html in that case instead?)
   token_field.addEventListener('input', got_input);
 }
-get_token();
-//test_auth();
-//load();
+
+function reload_while_keeping_state(force_reload_html_from_server) {
+  save_selection_location();
+  state.textarea_value = editor.value;
+  sessionStorage.setItem('hilarious_editor_state', JSON.stringify(state));
+  location.reload(force_reload_html_from_server);
+}
+window.reload_while_keeping_state = reload_while_keeping_state;
+// Run right now, before DOMReady so that Dragon NaturallySpeaking will
+// be able to notice any links that we render now.
+(function(){
+var stateJSON;
+if(stateJSON = sessionStorage.getItem('hilarious_editor_state')) {
+  sessionStorage.removeItem('hilarious_editor_state');
+  state = JSON.parse(stateJSON);
+  editor.value = state.textarea_value;
+  delete state.textarea_value;
+  adjust_editor_height();
+  restore_selection_location();
+  fix_reflow_bugs();
+  display_context_name();
+  display_editable_files();
+  document.body.removeChild(document.getElementById('ask-for-token'));
+  $(editor).focus();
+} else {
+  get_token();
+}
+}());
+$('#notes').click(function(){
+  reload_while_keeping_state(true);
+});
 
 }());
 </script>
