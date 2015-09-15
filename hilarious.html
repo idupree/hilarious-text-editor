@@ -540,7 +540,7 @@ function display_which_file_is_current() {
   }
 }
 
-function load_status() {
+function load_status(callbackAlways) {
   $.ajax({
     url: '/status?'+cachebuster(),
     method: 'POST',
@@ -557,7 +557,8 @@ function load_status() {
         // links need to be created before DOMReady
         reload_soon_for_dragon_naturallyspeaking();
       }
-    }
+    },
+    always: callbackAlways
   });
 }
 
@@ -663,10 +664,13 @@ function load(f) {
 
            $(editor).focus();
            display_which_file_is_current();
-           load_status();
-
-           // textareas need to be created before DOMReady
-           reload_soon_for_dragon_naturallyspeaking();
+           load_status(function() {
+             // textareas need to be created before DOMReady
+             // but, wait for load_status because it too may
+             // need the page to be reloaded, and better to
+             // only reload it once if we can
+             reload_soon_for_dragon_naturallyspeaking();
+           });
          }
       });
     }
@@ -685,7 +689,15 @@ function get_token() {
         token_field.removeEventListener('input', got_input);
         token_field.value = '';
         $('#ask-for-token').remove();
-        load_status();
+        // load_status is currently called by load and
+        // we can't call it here reliably because load()
+        // might finish first and then have us call
+        // reload_soon_for_dragon_naturallyspeaking()
+        // which would terminate any outstanding ajax requests.
+        // I could instead change reload_soon_... to use
+        // $(document).ajaxStop, with some finickiness.
+        // https://stackoverflow.com/questions/3148225/jquery-active-function
+        // load_status();
         load();
       },
       // try again a short while later, because sometimes
