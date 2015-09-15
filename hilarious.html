@@ -15,7 +15,7 @@ html,body {
   color: #006;
   background-color: #fec;
   font-family: "Courier New", Courier, monospace;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -37,7 +37,8 @@ html,body {
 #linenos {
   background-color: #fce;
   text-align: right;
-  padding: 0 1px;
+  padding-left: 2px;
+  padding-right: 2px;
   white-space: pre;
 }
 #linenos > a {
@@ -59,15 +60,11 @@ html,body {
   overflow: hidden;
   border-width: 0px;
   white-space: pre-wrap;
-  /*
-    word-break is maybe not the most aesthetic, but it makes it easy to 
-    compute where the line numbers go, and easy for the users to see
-    how much whitespace they have, so we'll go with it for now
-  */
-  word-break: break-all;
 }
 #textarea_container, #testline {
   width: 80ch;
+  padding-left: 3px;
+  background-color: white;
 }
 #textarea_container > textarea {
   width: 100%;
