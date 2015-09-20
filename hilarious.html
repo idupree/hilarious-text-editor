@@ -116,6 +116,12 @@ html,body {
 #notes {
   padding: 2.5em 0.5em 0;
 }
+/* Workaround for IE, which doesn't implement <wbr>, not even IE11.
+   The character is U+200B ZERO WIDTH SPACE, which allows line breaking
+   like a regular space character does.  CSS generated content is not part of
+   the DOM, so thankfully the ZERO WIDTH SPACE will not appear in
+   the clipboard if the user copies text that includes <wbr>s. */
+wbr:before { content:"\200B"; }
   </style>
 </head>
 <body
