@@ -616,23 +616,33 @@ function escape_for_css_selector_attr_value(str) {
   return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
-function save_selection_location() {
-  // TODO: also store for the null file by calling it ''
-  // and not letting named files have the name ''.
+// "total" as in "always has a meaningful return value"
+function total_current_file() {
   if(state.current_file != null) {
-    state.remembered_selections[state.current_file] = {
-      selectionStart: editor.selectionStart,
-      selectionEnd: editor.selectionEnd,
-      selectionDirection: editor.selectionDirection
-    };
+    if(state.current_file === '') {
+      console.log("bug? state.current_file value is empty string");
+    }
+    return state.current_file;
+  } else {
+    return '';
   }
 }
+
+function save_selection_location() {
+  var file = total_current_file();
+  state.remembered_selections[file] = {
+    selectionStart: editor.selectionStart,
+    selectionEnd: editor.selectionEnd,
+    selectionDirection: editor.selectionDirection
+  };
+}
 function restore_selection_location() {
-  if(state.remembered_selections[state.current_file]) {
+  var file = total_current_file();
+  if(state.remembered_selections[file]) {
     editor.setSelectionRange(
-      state.remembered_selections[state.current_file].selectionStart,
-      state.remembered_selections[state.current_file].selectionEnd,
-      state.remembered_selections[state.current_file].selectionDirection
+      state.remembered_selections[file].selectionStart,
+      state.remembered_selections[file].selectionEnd,
+      state.remembered_selections[file].selectionDirection
     );
   } else {
     editor.setSelectionRange(0, 0);
