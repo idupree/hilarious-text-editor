@@ -163,7 +163,17 @@ var state = {
   editable_files: {},
 
   // filename: { selectionStart: _, selectionEnd: _, selectionDirection: _}
-  remembered_selections: {}
+  remembered_selections: {},
+
+  saving: {
+    trying_to_save: false,
+    save_interval: null,
+    save_req: null,
+    last_sync_attempt: null,
+    last_edit: 0,
+    last_sync_success: null,
+    latest_time_that_the_server_has_all_our_data: null // in theory updated continously when the server has our data, but actually only retroactively updated once the user types something to be the moment before they typed
+  }
 };
 
 // make the state visible in the web console, for debugging.
@@ -228,18 +238,10 @@ function set_textarea_contents(text) {
 }
 
 
-// todo save if somdhc
-var trying_to_save = false;
-var save_interval = null;
-var save_req = null;
-var last_sync_attempt;
-var last_edit = 0;
-var last_sync_success;
-var latest_time_that_the_server_has_all_our_data; // in theory updated continously when the server has our data, but actually only retroactively updated once the user types something to be the moment before they typed
 function call_intermittently_while_trying_to_save() {
 //function call_intermittently_when_active() {
 //function call_intermittently() {
-  var time_unsaved = Date.now() - latest_time_that_the_server_has_all_our_data;
+  var time_unsaved = Date.now() - state.saving.latest_time_that_the_server_has_all_our_data;
   if(time_unsaved > 91000) {
     $(save_status).text('Last saved '+Math.round(time_unsaved/1000/60)+' minutes ago');
   }
@@ -273,32 +275,32 @@ function unsaved_beforeunload(e) {
   // so we don't have to warn them again.
   try_save();
   // some changes haven't saved yet!
-  //var time_unsaved = Date.now() - latest_time_that_the_server_has_all_our_data;
+  //var time_unsaved = Date.now() - state.saving.latest_time_that_the_server_has_all_our_data;
   //var message = "changes from the last " + describe_millisecond_duration(time_unsaved) + " haven't saved yet!"
-  var message = "changes " + describe_since(latest_time_that_the_server_has_all_our_data) + " haven't saved yet!";
+  var message = "changes " + describe_since(state.saving.latest_time_that_the_server_has_all_our_data) + " haven't saved yet!";
   e.returnValue = message; // some browsers
   return message; // other browsers
 }
 
 function we_will_need_to_save() {
-  if(!trying_to_save) {
-    trying_to_save = true;
+  if(!state.saving.trying_to_save) {
+    state.saving.trying_to_save = true;
     window.addEventListener('beforeunload', unsaved_beforeunload);
   }
 }
 function starting_saving() {
-  if(!save_interval) {
-    save_interval = setInterval(call_intermittently_while_trying_to_save, 60000);
+  if(!state.saving.save_interval) {
+    state.saving.save_interval = setInterval(call_intermittently_while_trying_to_save, 60000);
   }
   we_will_need_to_save();
 }
 function all_done_saving() {
-  trying_to_save = false;
-  if(save_interval !== null) {
-    clearInterval(save_interval);
+  state.saving.trying_to_save = false;
+  if(state.saving.save_interval !== null) {
+    clearInterval(state.saving.save_interval);
   }
   window.removeEventListener('beforeunload', unsaved_beforeunload);
-  save_req = null;
+  state.saving.save_req = null;
   $(save_status).empty();
 }
 // call debounced_save() instead of this
@@ -307,18 +309,18 @@ function all_done_saving() {
 function try_save() {
   // is 30 seconds enough for saving??
   var req_timeout = 30000;
-  if(save_req !== null) {
-    if(last_sync_attempt + req_timeout < Date.now()) {
-      save_req.abort();
+  if(state.saving.save_req !== null) {
+    if(state.saving.last_sync_attempt + req_timeout < Date.now()) {
+      state.saving.save_req.abort();
     } else {
       return;
     }
   }
-  last_sync_attempt = Date.now();
+  state.saving.last_sync_attempt = Date.now();
   starting_saving();
   var f = state.current_file;
   var which_file_header = ((f != null) ? { 'X-File': f } : {});
-  save_req = $.ajax({
+  state.saving.save_req = $.ajax({
     url: '/save?'+cachebuster(),
     method: 'POST',
     data: editor.value,
@@ -328,9 +330,9 @@ function try_save() {
       which_file_header,
       auth_headers()),
     success: function(data) {
-      latest_time_that_the_server_has_all_our_data = last_sync_success = last_sync_attempt;
-      save_req = null;
-      if(last_sync_success < last_edit) {
+      state.saving.latest_time_that_the_server_has_all_our_data = state.saving.last_sync_success = state.saving.last_sync_attempt;
+      state.saving.save_req = null;
+      if(state.saving.last_sync_success < state.saving.last_edit) {
         debounced_save();
       } else {
         all_done_saving();
@@ -341,7 +343,7 @@ function try_save() {
 var debounced_save = _.debounce(try_save, 2500);
 
 //function editorchange_less_urgent() {
-//  last_edit = Date.now();
+//  state.saving.last_edit = Date.now();
 //  try_save();
 //}
 //var debounced_editorchange_less_urgent = _.debounce(editorchange_less_urgent, 2500);
@@ -355,12 +357,12 @@ function adjust_editor_height() {
 function editor_input() {
   adjust_editor_height();
   var now = Date.now();
-  if(last_edit <= latest_time_that_the_server_has_all_our_data) {
-    if(latest_time_that_the_server_has_all_our_data < now) {
-      latest_time_that_the_server_has_all_our_data = now - 1;
+  if(state.saving.last_edit <= state.saving.latest_time_that_the_server_has_all_our_data) {
+    if(state.saving.latest_time_that_the_server_has_all_our_data < now) {
+      state.saving.latest_time_that_the_server_has_all_our_data = now - 1;
     }
   }
-  last_edit = now;
+  state.saving.last_edit = now;
   we_will_need_to_save();
   debounced_save();
   //debounced_editorchange_less_urgent();
@@ -639,11 +641,11 @@ function restore_selection_location() {
 
 function load(f) {
   if(f !== state.current_file) {
-    if(trying_to_save) {
+    if(state.saving.trying_to_save) {
       try_save();
       // try again in 300ms, otherwise let the user click again...
       setTimeout(function() {
-        if(!trying_to_save) {
+        if(!state.saving.trying_to_save) {
           load(f);
         }
       }, 300);
@@ -660,7 +662,7 @@ function load(f) {
              $(editor).blur();
            }
            state.current_file = f;
-           latest_time_that_the_server_has_all_our_data = last_sync_success = Date.now();
+           state.saving.latest_time_that_the_server_has_all_our_data = state.saving.last_sync_success = Date.now();
 
            set_textarea_contents(data);
            adjust_editor_height();
@@ -726,6 +728,15 @@ function reload_while_keeping_state(force_reload_html_from_server) {
     save_selection_location();
     state.textarea_value = editor.value;
   }
+  if(state.saving.save_req != null) {
+    state.saving.save_req.abort();
+    state.saving.save_req = null;
+  }
+  if(state.saving.save_interval != null) {
+    clearInterval(state.saving.save_interval);
+    state.saving.save_interval = null;
+  }
+  window.removeEventListener('beforeunload', unsaved_beforeunload);
   sessionStorage.setItem('hilarious_editor_state', JSON.stringify(state));
   location.reload(force_reload_html_from_server);
 }
@@ -749,6 +760,9 @@ if(stateJSON = sessionStorage.getItem('hilarious_editor_state')) {
   $('#ask-for-token').remove();
   if(editor != null) {
     $(editor).focus();
+  }
+  if(state.saving.trying_to_save) {
+    try_save();
   }
 } else {
   get_token();
