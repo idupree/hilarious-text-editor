@@ -342,15 +342,39 @@ function try_save() {
 }
 var debounced_save = _.debounce(try_save, 2500);
 
+var adjust_editor_height_for_dragon = function(no_need_to_reload_page_for_dragon) {
+  // For Dragon, keep the textarea longer than necessary
+  // so that we don't have to reload the document as often
+  // (we need to reload the document every time we change
+  // this).
+  if(editor.scrollHeight > editor.clientHeight) {
+    var line_height = textarea_line_height();
+    editor.style.height = (editor.scrollHeight + (line_height * 200) + 1)+'px';
+    // e.g. callers can pass "no need" if pre-DOMReady,
+    // or if we are about to do something that will cause a
+    // page reload anyway.
+    if(!no_need_to_reload_page_for_dragon) {
+      reload_soon_for_dragon_naturallyspeaking();
+    }
+  }
+}
+// debounce it so that a reload is less likely to have a race condition
+// with user-input "input" event that's trying to happen
+var debounced_adjust_editor_height_for_dragon = _.debounce(adjust_editor_height_for_dragon, 40);
+
 //function editorchange_less_urgent() {
 //  state.saving.last_edit = Date.now();
 //  try_save();
 //}
 //var debounced_editorchange_less_urgent = _.debounce(editorchange_less_urgent, 2500);
 
-function adjust_editor_height() {
-  if(editor.scrollHeight > editor.clientHeight) {
-    editor.style.height = editor.scrollHeight+'px';
+function adjust_editor_height(no_need_to_reload_page_for_dragon) {
+  if(reload_page_as_needed_for_dragon_naturallyspeaking) {
+    debounced_adjust_editor_height_for_dragon(no_need_to_reload_page_for_dragon);
+  } else {
+    if(editor.scrollHeight > editor.clientHeight) {
+      editor.style.height = editor.scrollHeight+'px';
+    }
   }
   debounced_compute_line_numbers();
 }
@@ -368,9 +392,13 @@ function editor_input() {
   //debounced_editorchange_less_urgent();
 }
 
+function textarea_line_height() {
+  return +$(editor).css('line-height').replace(/px$/, '');
+}
+
 function compute_line_numbers() {
   var s = '';
-  var line_height = +$(editor).css('line-height').replace(/px$/, '');
+  var line_height = textarea_line_height();
   var $testline = $('#testline');
   _.each(editor.value.split('\n'), function(line, idx) {
     var lineno = idx + 1;
@@ -675,7 +703,7 @@ function load(f) {
            state.saving.latest_time_that_the_server_has_all_our_data = state.saving.last_sync_success = Date.now();
 
            set_textarea_contents(data);
-           adjust_editor_height();
+           adjust_editor_height(true);
            restore_selection_location();
            fix_reflow_bugs();
 
@@ -761,7 +789,7 @@ if(stateJSON = sessionStorage.getItem('hilarious_editor_state')) {
   if(state.textarea_value != null) {
     set_textarea_contents(state.textarea_value);
     delete state.textarea_value;
-    adjust_editor_height();
+    adjust_editor_height(true);
     restore_selection_location();
     fix_reflow_bugs();
   }
