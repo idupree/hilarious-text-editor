@@ -166,6 +166,9 @@ var state = {
   remembered_selections: {}
 };
 
+// make the state visible in the web console, for debugging.
+window.hilarious_editor_state = state;
+
 var intended_editor_width = 80;
 
 function cachebuster() {
