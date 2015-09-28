@@ -41,6 +41,14 @@ html,body {
   padding-right: 2px;
   white-space: pre;
 }
+/* Min width for linenos, so that it doesn't change width
+   on reasonably small files.  Don't use 'ch' unit because
+   IE gets that wrong and there's a simpler workaround: */
+#linenos::after {
+  content: '0000';
+  height: 1px;
+  visibility: hidden;
+}
 #linenos > a {
   display: block;
   text-decoration: none;
@@ -116,6 +124,16 @@ html,body {
 #notes {
   padding: 2.5em 0.5em 0;
 }
+.textarea_with_linenos {
+  display: inline-block;
+  display: inline-flex;
+}
+#linenos {
+  order: 1;
+}
+#textarea_container {
+  order: 2;
+}
 /* Workaround for IE, which doesn't implement <wbr>, not even IE11.
    The character is U+200B ZERO WIDTH SPACE, which allows line breaking
    like a regular space character does.  CSS generated content is not part of
@@ -127,8 +145,10 @@ wbr:before { content:"\200B"; }
 <body
   ><div id="ask-for-token" style="display: none;"><label><p>Token:</p><input type="password" id="token"></label></div
   ><div id="bar"><div id="save-status"></div><div id="context_name"></div><div id="editable_files"></div><div id="notes">Known bugs: You are not protected from editing your stuff twice; The editor doesn't notice if the file disappears and it keeps overwriting it.</div></div
+  ><div class="textarea_with_linenos"
+  ><div id="textarea_container"></div
   ><div id="linenos"></div
-  ><div id="textarea_container"></div>
+  >
   <textarea id="testline"></textarea>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
