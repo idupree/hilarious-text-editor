@@ -450,6 +450,36 @@ var debounced_compute_line_numbers = _.debounce(compute_line_numbers, 50);
 
 $('#textarea_container').on('input', 'textarea', editor_input);
 
+// Make page up and page down scroll the screen rather than the cursor.
+//
+// Page up/down happen on keydown, not keyup, emperically.
+//
+// I haven't found a way to mirror the browser's exact animated-scrolling
+// behavior or exact number of lines they redundantly show between the
+// previous and new scroll position.  MDN says not to use window.scrollByPages
+// and in any case that doesn't animate on Firefox(Linux) either:
+// https://developer.mozilla.org/en-US/docs/Web/API/Window/scrollByPages
+//
+// TODO: when all browsers agree on a non-deprecated way to handle
+// key-event data, use that.  event.which is "deprecated", but
+// event.key, the replacement, isn't implemented by webkit/blink browsers
+// as of Sept 2015.
+var page_up_key_num = 33;
+var page_down_key_num = 34;
+function editor_keydown(e) {
+  if(e.which === page_up_key_num || e.which === page_down_key_num) {
+    e.preventDefault();
+    e.stopPropagation();
+    var page_height = window.innerHeight;
+    var scroll_magnitude = page_height - 3 * textarea_line_height();
+    var scroll_amount = ((e.which === page_up_key_num)
+                              ? -scroll_magnitude : scroll_magnitude);
+    window.scrollBy(0, scroll_amount);
+  }
+}
+
+$('#textarea_container').on('keydown', 'textarea', editor_keydown);
+
 function repeat(str, count) {
   if(str.repeat) {
     return str.repeat(count);
