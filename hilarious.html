@@ -471,8 +471,13 @@ function compute_line_numbers() {
       // of 'input' events for that?)
       if(number_of_inserted_newlines > 0 && number_of_inserted_newlines < 3) {
         console.log("a");
+        var r = /\n/g;
+        r.lastIndex = old_sel.selectionStart;
+        r.exec(new_textarea_value);
+        var end_of_line_to_get_indent_from = r.lastIndex - 1;
+        console.log(old_sel.selectionStart, end_of_line_to_get_indent_from);
         var previous_indent = ( //'x'
-          new_textarea_value.substring(0, old_sel.selectionStart)
+          new_textarea_value.substring(0, end_of_line_to_get_indent_from)
             .match('(?:^|\n)([ \t]*)[^\n]*$')[1]);
         var indented_new_text = _.map(insertion_lines, function(line, idx) {
           if(idx === 0) {
