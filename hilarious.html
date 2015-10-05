@@ -432,21 +432,37 @@ function compute_line_numbers() {
   var new_textarea_value = state.textarea_value;
   save_selection_location();
   var new_sel = state.remembered_selections[total_current_file()];
+  var textarea_lines = state.textarea_value.split('\n');
         console.log("d");
-  if(attempt_to_auto_indent_when_user_enters_a_newline &&
-     old_textarea_value.length < state.textarea_value.length) {
-        console.log("c");
+  if(attempt_to_auto_indent_when_user_enters_a_newline) {
+     // Dragon sometimes deletes trailing spaces on a line when
+     // adding a newline, and the common-prefix code should deal fine
+     // with that deletion, so allow this code to trigger on shrinking
+     // or staying the same size (character replacement) as well.
+     // && old_textarea_value.length < state.textarea_value.length
+     //&& textarea_lines.length > old_textarea_value.split('\n').length
+     //) {
+    var old_textarea_line_count = old_textarea_value.split('\n').length;
+    var number_of_additional_lines = textarea_lines.length - old_textarea_line_count;
+    if(number_of_additional_lines > 0) {
+    console.log("c");
     var shared_prefix_idx = 0;
     while(
-      shared_prefix_idx < new_sel.selectionEnd - 1
-        // subtract 1 so that typing a newline on a line
-        // that's already a newline can still indent,
-        // even though we don't know the old selection position
+      shared_prefix_idx < new_sel.selectionEnd
       &&
       new_textarea_value.charAt(shared_prefix_idx) ==
       old_textarea_value.charAt(shared_prefix_idx)
       ) {
       shared_prefix_idx += 1;
+    }
+    var newlines_gone_back = 0;
+    while(
+      shared_prefix_idx > 0 &&
+      newlines_gone_back < number_of_additional_lines &&
+      new_textarea_value.charAt(shared_prefix_idx - 1) == '\n'
+      ) {
+      newlines_gone_back += 1;
+      shared_prefix_idx -= 1;
     }
     old_sel.selectionStart = old_sel.selectionEnd = shared_prefix_idx;
     // insertions may have happened recently
@@ -458,9 +474,9 @@ function compute_line_numbers() {
       && (console.log("3"), true) &&
       old_textarea_value.substring(0, old_sel.selectionStart) ==
       new_textarea_value.substring(0, old_sel.selectionStart)
-      && (console.log("4"), true) &&
-      old_textarea_value.substring(old_sel.selectionEnd) ==
-      new_textarea_value.substring(new_sel.selectionEnd)
+      && (console.log("4"), true) // &&
+      //old_textarea_value.substring(old_sel.selectionEnd) ==
+      //new_textarea_value.substring(new_sel.selectionEnd)
       ) {
         console.log("b");
       var insertion = new_textarea_value.substring(old_sel.selectionStart,
@@ -469,7 +485,7 @@ function compute_line_numbers() {
       var number_of_inserted_newlines = insertion_lines.length - 1;
       // don't auto indent large pastes (TODO detect count
       // of 'input' events for that?)
-      if(number_of_inserted_newlines > 0 && number_of_inserted_newlines < 3) {
+      if(number_of_inserted_newlines > 0 && number_of_inserted_newlines <= 2) {
         console.log("a");
         var r = /\n/g;
         r.lastIndex = old_sel.selectionStart;
@@ -486,6 +502,7 @@ function compute_line_numbers() {
             return previous_indent + line;
           }
         }).join('\n');
+        //console.log('"' + insertion.replace(/\n/g, 'X') + '"', '"' + indented_new_text.replace(/\n/g, 'X') + '"');
         var extra_characters = indented_new_text.length - insertion.length;
         editor.value = state.textarea_value = new_textarea_value = (
           new_textarea_value.substring(0, old_sel.selectionStart)
@@ -497,11 +514,12 @@ function compute_line_numbers() {
         restore_selection_location();
       }
     }
+    }
   }
   var s = '';
   var line_height = textarea_line_height();
   var $testline = $('#testline');
-  _.each(state.textarea_value.split('\n'), function(line, idx) {
+  _.each(textarea_lines, function(line, idx) {
     var lineno = idx + 1;
     // This len/80 version didn't work in some weird cases with long lines
     // where the browsers decide to wrap the lines earlier
