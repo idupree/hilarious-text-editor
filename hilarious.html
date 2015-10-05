@@ -157,6 +157,8 @@ wbr:before { content:"\200B"; }
 "use strict";
 
 var reload_page_as_needed_for_dragon_naturallyspeaking = true;
+var attempt_to_auto_indent_when_user_enters_a_newline = true;
+
 function reload_soon_for_dragon_naturallyspeaking() {
   if(reload_page_as_needed_for_dragon_naturallyspeaking) {
     setTimeout(function(){
@@ -399,6 +401,7 @@ function adjust_editor_height(no_need_to_reload_page_for_dragon) {
   debounced_compute_line_numbers();
 }
 function editor_input() {
+  //console.log("inp");
   adjust_editor_height();
   var now = Date.now();
   if(state.saving.last_edit <= state.saving.latest_time_that_the_server_has_all_our_data) {
@@ -417,10 +420,83 @@ function textarea_line_height() {
 }
 
 function compute_line_numbers() {
+  var old_textarea_value = state.textarea_value;
+  var old_sel = state.remembered_selections[total_current_file()];
+  // hmm... old_sel can be out of date because the user could have clicked
+  // to change it and we didn't notice. I could detect that in many cases
+  // by http://stackoverflow.com/a/5832746 keydown/click/focus/input
+  // (does menu "Undo" trigger an "input" event?)
+  // For now, guessing the old position by computing a common prefix between
+  // new text and old text...
+  state.textarea_value = editor.value;
+  var new_textarea_value = state.textarea_value;
+  save_selection_location();
+  var new_sel = state.remembered_selections[total_current_file()];
+        console.log("d");
+  if(attempt_to_auto_indent_when_user_enters_a_newline &&
+     old_textarea_value.length < state.textarea_value.length) {
+        console.log("c");
+    var shared_prefix_idx = 0;
+    while(
+      shared_prefix_idx < new_sel.selectionEnd - 1
+        // subtract 1 so that typing a newline on a line
+        // that's already a newline can still indent,
+        // even though we don't know the old selection position
+      &&
+      new_textarea_value.charAt(shared_prefix_idx) ==
+      old_textarea_value.charAt(shared_prefix_idx)
+      ) {
+      shared_prefix_idx += 1;
+    }
+    old_sel.selectionStart = old_sel.selectionEnd = shared_prefix_idx;
+    // insertions may have happened recently
+    // only auto-indent if we have a good sense of what's happening
+    if(
+      old_sel.selectionStart == old_sel.selectionEnd &&  (console.log("1"), true) &&
+      new_sel.selectionStart == new_sel.selectionEnd && (console.log("2"), true) &&
+      new_sel.selectionStart > old_sel.selectionEnd
+      && (console.log("3"), true) &&
+      old_textarea_value.substring(0, old_sel.selectionStart) ==
+      new_textarea_value.substring(0, old_sel.selectionStart)
+      && (console.log("4"), true) &&
+      old_textarea_value.substring(old_sel.selectionEnd) ==
+      new_textarea_value.substring(new_sel.selectionEnd)
+      ) {
+        console.log("b");
+      var insertion = new_textarea_value.substring(old_sel.selectionStart,
+                                                   new_sel.selectionStart);
+      var insertion_lines = insertion.split('\n');
+      var number_of_inserted_newlines = insertion_lines.length - 1;
+      // don't auto indent large pastes (TODO detect count
+      // of 'input' events for that?)
+      if(number_of_inserted_newlines > 0 && number_of_inserted_newlines < 3) {
+        console.log("a");
+        var previous_indent = ( //'x'
+          new_textarea_value.substring(0, old_sel.selectionStart)
+            .match('(?:^|\n)([ \t]*)[^\n]*$')[1]);
+        var indented_new_text = _.map(insertion_lines, function(line, idx) {
+          if(idx === 0) {
+            return line;
+          } else {
+            return previous_indent + line;
+          }
+        }).join('\n');
+        var extra_characters = indented_new_text.length - insertion.length;
+        editor.value = state.textarea_value = new_textarea_value = (
+          new_textarea_value.substring(0, old_sel.selectionStart)
+          + indented_new_text
+          + new_textarea_value.substring(new_sel.selectionStart)
+          );
+        new_sel.selectionStart += extra_characters;
+        new_sel.selectionEnd += extra_characters;
+        restore_selection_location();
+      }
+    }
+  }
   var s = '';
   var line_height = textarea_line_height();
   var $testline = $('#testline');
-  _.each(editor.value.split('\n'), function(line, idx) {
+  _.each(state.textarea_value.split('\n'), function(line, idx) {
     var lineno = idx + 1;
     // This len/80 version didn't work in some weird cases with long lines
     // where the browsers decide to wrap the lines earlier
@@ -752,6 +828,7 @@ function load(f) {
            state.current_file = f;
            state.saving.latest_time_that_the_server_has_all_our_data = state.saving.last_sync_success = Date.now();
 
+           state.textarea_value = data;
            set_textarea_contents(data);
            adjust_editor_height(true);
            restore_selection_location();
@@ -838,7 +915,7 @@ if(stateJSON = sessionStorage.getItem('hilarious_editor_state')) {
   state = JSON.parse(stateJSON);
   if(state.textarea_value != null) {
     set_textarea_contents(state.textarea_value);
-    delete state.textarea_value;
+    //delete state.textarea_value;
     adjust_editor_height(true);
     restore_selection_location();
     fix_reflow_bugs();
