@@ -96,7 +96,7 @@ def relpath_editable_files_under(rootpath):
       if not exclude_file(abspath(join(dirpath, f))):
         yield relpath(join(dirpath, f), rootpath)
 
-def request_handler(server_origin, hilarious_edited_path = None, auth_token=None):
+def request_handler(server_origin, hilarious_edited_path = None, auth_token=None, on_save=None):
   # Tokens already have enough bits of entropy that you can't brute-force
   # guess them, so a single hash is as good as bcrypt (and faster, and in
   # the python standard libraries). Goals: to prevent a server compromise
@@ -267,6 +267,8 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
       with open(temp_filename, 'wt') as f:
         f.write(self.rfile.read(length).decode('utf-8'))
       os.replace(temp_filename, filename)
+      if on_save != None:
+        on_save(filename)
       self.send_response(204)
       self.send_header('Content-Type', 'text/plain')
       self.boilerplate_headers()
@@ -278,7 +280,7 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
   return RequestHandler
 
 
-def hilariously_edit(server_host, server_port, path, auth_type):
+def hilariously_edit(server_host, server_port, path, auth_type, on_save):
   server_ip = socket.gethostbyname(server_host)
   server_origin = 'http://' + server_host + ':' + str(server_port)
 
@@ -309,7 +311,7 @@ def hilariously_edit(server_host, server_port, path, auth_type):
 
   server = ThreadingHTTPServer(
              (server_ip, server_port),
-             request_handler(server_origin, path, auth_token))
+             request_handler(server_origin, path, auth_token, on_save))
   server.serve_forever()
 
 def copy_to_clipboard(text):
@@ -337,6 +339,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='copy-and-stdout')
   parser.add_argument('--create-file', action='store_true', help="when the command line lists a particular file to edit, --create-file says to create it if it doesn't exist yet. Without --create-file, passing a nonexistent file is an error.")
+  parser.add_argument('--on-save', action='append', help='run whenever a file is (automatically) saved; shell syntax')
   parser.add_argument('thing_to_edit', nargs='?', default=default_default_edited_filename)
   args = parser.parse_args()
 
@@ -364,7 +367,17 @@ def main():
   if os.path.isfile(args.thing_to_edit) and not editable_as_text(args.thing_to_edit):
     exit('sorry, this editor would be likely to corrupt newlines or nulls in binary files (or be too slow on too-large files)')
 
-  hilariously_edit('localhost', 3419, args.thing_to_edit, args.auth)
+  on_save = None
+  if args.on_save != None:
+    # make immutable copy for closure
+    on_save_tuple = tuple(args.on_save)
+    def on_save(filename):
+      for command in on_save_tuple:
+        sys.stderr.write('Running: ' + command + '\n')
+        exitcode = subprocess.call(command, shell=True)
+        sys.stderr.write('\nExit status ' + str(exitcode) + ' from: ' + command + '\n')
+
+  hilariously_edit('localhost', 3419, args.thing_to_edit, args.auth, on_save)
 
 if __name__ == '__main__':
   main()
