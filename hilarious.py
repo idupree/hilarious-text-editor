@@ -336,7 +336,7 @@ def copy_to_clipboard(text):
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='copy-and-stdout')
-  parser.add_argument('--create-file', action='store_true')
+  parser.add_argument('--create-file', action='store_true', help="when the command line lists a particular file to edit, --create-file says to create it if it doesn't exist yet. Without --create-file, passing a nonexistent file is an error.")
   parser.add_argument('thing_to_edit', nargs='?', default=default_default_edited_filename)
   args = parser.parse_args()
 
