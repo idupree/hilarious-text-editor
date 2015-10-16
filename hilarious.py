@@ -165,7 +165,7 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
       self.end_headers()
       # load page_html each time so that development is faster:
       # fewer things require restarting the server
-      with open(get_filename_relative_to_this_script('hilarious.html'), 'rt') as f:
+      with open(get_filename_relative_to_this_script('hilarious.html'), 'rt', encoding='utf-8') as f:
         page_html = f.read()
       self.wfile.write(page_html.encode('utf-8'))
 
@@ -243,7 +243,7 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
       # this locks up the server for long files, hm
       #open_file.seek(0)
       #self.wfile.write(open_file.read().encode('utf-8'))
-      with open(filename, 'rt') as f:
+      with open(filename, 'rt', encoding='utf-8') as f:
         self.wfile.write(f.read().encode('utf-8'))
 
     def save(self):
@@ -264,7 +264,7 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
       # so make sure writes are atomic
       temp_filename = join(os.path.dirname(abspath(filename)),
         'temp-hilarious-editor-'+create_token()+'.txt~')
-      with open(temp_filename, 'wt') as f:
+      with open(temp_filename, 'wt', encoding='utf-8') as f:
         f.write(self.rfile.read(length).decode('utf-8'))
       os.replace(temp_filename, filename)
       if on_save != None:
@@ -356,7 +356,7 @@ def main():
 
   if not os.path.exists(args.thing_to_edit):
     if args.create_file:
-      with open(args.thing_to_edit, 'at'): pass
+      with open(args.thing_to_edit, 'at', encoding='utf-8'): pass
       assert(os.path.exists(args.thing_to_edit))
     else:
       exit('you can only edit something that exists, please; or pass --create-file to edit a single file and create it if it doesn\'t exist yet')
