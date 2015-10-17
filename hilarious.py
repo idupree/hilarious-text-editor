@@ -131,7 +131,11 @@ def abspath_editable_files_under_or_including(rootpath):
   else:
     return abspath_editable_files_under(rootpath)
 
-def request_handler(server_origin, hilarious_edited_paths = None, auth_token=None, on_save=None):
+def request_handler(server_origin,
+    hilarious_edited_paths = (),
+    exclude_paths = lambda: False,
+    auth_token=None,
+    on_save=None):
   # Tokens already have enough bits of entropy that you can't brute-force
   # guess them, so a single hash is as good as bcrypt (and faster, and in
   # the python standard libraries). Goals: to prevent a server compromise
@@ -155,6 +159,7 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
     editable_files = set(f
       for path in hilarious_edited_paths
       for f in abspath_editable_files_under_or_including(path)
+      if not exclude_paths(f)
       ) | {default_default_edited_filename}
   recompute_editable_files()
 
@@ -300,7 +305,7 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
   return RequestHandler
 
 
-def hilariously_edit(server_host, server_port, paths, auth_type, on_save):
+def hilariously_edit(server_host, server_port, paths, exclude_paths, auth_type, on_save):
   server_ip = socket.gethostbyname(server_host)
   server_origin = 'http://' + server_host + ':' + str(server_port)
 
@@ -331,7 +336,7 @@ def hilariously_edit(server_host, server_port, paths, auth_type, on_save):
 
   server = ThreadingHTTPServer(
              (server_ip, server_port),
-             request_handler(server_origin, paths, auth_token, on_save))
+             request_handler(server_origin, paths, exclude_paths, auth_token, on_save))
   server.serve_forever()
 
 def copy_to_clipboard(text):
@@ -385,6 +390,7 @@ def main():
   parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='copy-and-stdout')
   parser.add_argument('--create-file', action='store_true', help="when the command line lists a particular file to edit, --create-file says to create it if it doesn't exist yet. Without --create-file, passing a nonexistent file is an error.")
   parser.add_argument('--on-save', action='append', help='run whenever a file is (automatically) saved; shell syntax')
+  parser.add_argument('--exclude-re', action='append', help="even if listed as a thing to edit, don't edit files whose absolute paths match this regular expression (python dialect of regexp)")
   parser.add_argument('things_to_edit', nargs='*')
   args = parser.parse_args()
 
@@ -408,7 +414,14 @@ def main():
         exitcode = subprocess.call(command, shell=True)
         sys.stderr.write('\nExit status ' + str(exitcode) + ' from: ' + command + '\n')
 
-  hilariously_edit('localhost', 3419, args.things_to_edit, args.auth, on_save)
+  # make immutable copy for closure
+  exclude_regexps = tuple(args.exclude_re) if args.exclude_re else ()
+  def exclude_paths(path):
+    return any(map(
+      lambda pattern: re.search(pattern, path) != None,
+      exclude_regexps))
+
+  hilariously_edit('localhost', 3419, args.things_to_edit, exclude_paths, args.auth, on_save)
 
 if __name__ == '__main__':
   main()
