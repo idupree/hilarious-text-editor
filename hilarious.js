@@ -501,7 +501,7 @@ function wrappable_file_name_html(f) {
   // and it would look poor to wrap at short extensions,
   // so only wrap at '.' when there are enough characters after it.
   // Wrap after regular separators and before dots for aesthetic reasons.
-  return _.escape(f).replace(/(?:[-_\/]|(?=\..{6}))/g, '$&<wbr>');
+  return _.escape(f).replace(/(?:[-_\\\/]|(?=\..{6}))/g, '$&<wbr>');
 }
 
 // A "set" here is an object with every key/value pair having
