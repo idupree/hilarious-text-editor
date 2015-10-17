@@ -19,10 +19,22 @@ html,body {
   vertical-align: top;
   white-space: normal;
 }
+body {
+  position: relative;
+}
 #bar {
   min-height: 100%;
   width: 20em;
   background-color: #cfe;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.textarea_with_linenos {
+  xposition: absolute;
+  xleft: 20em;
+  xtop: 0;
+  margin-left: 20em;
 }
 #bar > div {
   margin-top: 1em;
