@@ -96,7 +96,21 @@ def relpath_editable_files_under(rootpath):
       if not exclude_file(abspath(join(dirpath, f))):
         yield relpath(join(dirpath, f), rootpath)
 
-def request_handler(server_origin, hilarious_edited_path = None, auth_token=None, on_save=None):
+def abspath_editable_files_under(rootpath):
+  return map(lambda f: abspath(join(rootpath, f)),
+             relpath_editable_files_under(rootpath))
+
+def abspath_editable_files_under_or_including(rootpath):
+  rootpath = abspath(rootpath)
+  if os.path.isfile(rootpath):
+    if not exclude_file(rootpath):
+      return [rootpath]
+    else:
+      return []
+  else:
+    return abspath_editable_files_under(rootpath)
+
+def request_handler(server_origin, hilarious_edited_paths = None, auth_token=None, on_save=None):
   # Tokens already have enough bits of entropy that you can't brute-force
   # guess them, so a single hash is as good as bcrypt (and faster, and in
   # the python standard libraries). Goals: to prevent a server compromise
@@ -107,19 +121,19 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
   if auth_token != None:
     auth_token = hashlib.sha384(auth_token.encode('ascii')).digest()
 
-  if os.path.isfile(hilarious_edited_path):
-    default_file_name = hilarious_edited_path
-    hilarious_edited_directory = None
-  else:
-    default_file_name = get_filename_relative_to_this_script('test_hilariously_edited.txt')
-    hilarious_edited_directory = hilarious_edited_path
+  default_file_name = next((
+    f for f in hilarious_edited_paths if os.path.isfile(f)
+    ),
+    get_filename_relative_to_this_script('test_hilariously_edited.txt')
+    )
 
   # editable_files is recomputed when /status is called... okay, I guess?
   editable_files = set()
   def recompute_editable_files():
     nonlocal editable_files
-    if hilarious_edited_directory != None:
-      editable_files = set(relpath_editable_files_under(hilarious_edited_directory))
+    editable_files = set(f
+      for path in hilarious_edited_paths
+      for f in abspath_editable_files_under_or_including(path))
   recompute_editable_files()
 
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
@@ -201,19 +215,8 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
       self.boilerplate_headers()
       self.end_headers()
 
-    # newline-separated
-    #def editable_files(self):
-    #  # (make sure we successfully traverse the directory before
-    #  # saying we 200-succeeded at getting an answer)
-    #  editable_files = list(relpath_editable_files_under(hilarious_edited_directory))
-    #  self.send_response(200)
-    #  self.send_header('Content-Type', 'text/plain; charset=utf-8')
-    #  self.boilerplate_headers()
-    #  self.end_headers()
-    #  self.wfile.write('\n'.join(editable_files))
-
     def status(self):
-      context_name = abspath(hilarious_edited_path)
+      context_name = '; '.join(map(abspath, hilarious_edited_paths))
       recompute_editable_files()
       result = json.dumps({
         "context_name": context_name,
@@ -228,12 +231,14 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
     #def open_file(self):
     #  pass
     def get_file_contents(self):
-      filename = default_file_name
-      if self.headers['X-File'] != None:
+      if self.headers['X-File'] == None:
+        filename = default_file_name
+      else:
         if self.headers['X-File'] in editable_files:
-          filename = join(hilarious_edited_directory, self.headers['X-File'])
+          filename = self.headers['X-File']
         else:
           self.my_error(403)
+          return
 
       self.send_response(200)
       self.send_header('Content-Type', 'text/plain; charset=utf-8')
@@ -252,12 +257,14 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
         return
       length = int(self.headers['Content-Length'])
 
-      filename = default_file_name
-      if self.headers['X-File'] != None:
+      if self.headers['X-File'] == None:
+        filename = default_file_name
+      else:
         if self.headers['X-File'] in editable_files:
-          filename = join(hilarious_edited_directory, self.headers['X-File'])
+          filename = self.headers['X-File']
         else:
           self.my_error(403)
+          return
 
       # we're going to be saving really often, so it's likely
       # that if the system crashes it'll be during a write,
@@ -280,7 +287,7 @@ def request_handler(server_origin, hilarious_edited_path = None, auth_token=None
   return RequestHandler
 
 
-def hilariously_edit(server_host, server_port, path, auth_type, on_save):
+def hilariously_edit(server_host, server_port, paths, auth_type, on_save):
   server_ip = socket.gethostbyname(server_host)
   server_origin = 'http://' + server_host + ':' + str(server_port)
 
@@ -311,7 +318,7 @@ def hilariously_edit(server_host, server_port, path, auth_type, on_save):
 
   server = ThreadingHTTPServer(
              (server_ip, server_port),
-             request_handler(server_origin, path, auth_token, on_save))
+             request_handler(server_origin, paths, auth_token, on_save))
   server.serve_forever()
 
 def copy_to_clipboard(text):
@@ -335,37 +342,48 @@ def copy_to_clipboard(text):
       pass
   return success
 
+
+def check_thing_to_edit_listed_on_command_line(thing_to_edit, create_if_nonexistent=False):
+
+  if os.path.islink(thing_to_edit):
+    exit("you can't edit a symlink, sorry:\n" + thing_to_edit)
+
+  if (os.path.exists(thing_to_edit) and
+          not os.path.isfile(thing_to_edit) and
+          not os.path.isdir(thing_to_edit)):
+    exit('sorry, you can\'t edit a special file:\n' + thing_to_edit)
+
+  if not os.path.exists(thing_to_edit):
+    if create_if_nonexistent:
+      with open(thing_to_edit, 'at', encoding='utf-8'): pass
+      assert(os.path.exists(thing_to_edit))
+    else:
+      exit('you can only edit something that exists, please;\nor pass --create-file to edit a single file and create it if it doesn\'t exist yet:\n' + thing_to_edit)
+
+  #if create_if_nonexistent and os.path.isdir(thing_to_edit):
+  #  exit('sorry, --create-file is incompatible with editing a directory')
+
+  if os.path.isfile(thing_to_edit) and not editable_as_text(thing_to_edit):
+    exit('sorry, this editor would be likely to corrupt newlines or nulls in binary files (or be too slow on too-large files):\n' + thing_to_edit)
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--auth', choices=['none', 'stdout', 'copy', 'copy-or-stdout', 'copy-and-stdout'], default='copy-and-stdout')
   parser.add_argument('--create-file', action='store_true', help="when the command line lists a particular file to edit, --create-file says to create it if it doesn't exist yet. Without --create-file, passing a nonexistent file is an error.")
   parser.add_argument('--on-save', action='append', help='run whenever a file is (automatically) saved; shell syntax')
-  parser.add_argument('thing_to_edit', nargs='?', default=default_default_edited_filename)
+  parser.add_argument('things_to_edit', nargs='*')
   args = parser.parse_args()
 
-  print('editing: '+args.thing_to_edit)
+  if len(args.things_to_edit) == 0:
+    args.things_to_edit = [default_default_edited_filename]
+    args.create_file = True
+
+  #print('editing:\n' + '\n'.join(args.things_to_edit) + '\n')
   print('auth: '+args.auth)
 
-  if os.path.islink(args.thing_to_edit):
-    exit("you can't edit a symlink, sorry")
-
-  if (os.path.exists(args.thing_to_edit) and
-          not os.path.isfile(args.thing_to_edit) and
-          not os.path.isdir(args.thing_to_edit)):
-    exit('sorry, you can\'t edit a special file')
-
-  if not os.path.exists(args.thing_to_edit):
-    if args.create_file:
-      with open(args.thing_to_edit, 'at', encoding='utf-8'): pass
-      assert(os.path.exists(args.thing_to_edit))
-    else:
-      exit('you can only edit something that exists, please; or pass --create-file to edit a single file and create it if it doesn\'t exist yet')
-
-  if args.create_file and os.path.isdir(args.thing_to_edit):
-    exit('sorry, --create-file is incompatible with editing a directory')
-
-  if os.path.isfile(args.thing_to_edit) and not editable_as_text(args.thing_to_edit):
-    exit('sorry, this editor would be likely to corrupt newlines or nulls in binary files (or be too slow on too-large files)')
+  for filename in args.things_to_edit:
+    check_thing_to_edit_listed_on_command_line(filename, args.create_file)
 
   on_save = None
   if args.on_save != None:
@@ -377,7 +395,7 @@ def main():
         exitcode = subprocess.call(command, shell=True)
         sys.stderr.write('\nExit status ' + str(exitcode) + ' from: ' + command + '\n')
 
-  hilariously_edit('localhost', 3419, args.thing_to_edit, args.auth, on_save)
+  hilariously_edit('localhost', 3419, args.things_to_edit, args.auth, on_save)
 
 if __name__ == '__main__':
   main()
