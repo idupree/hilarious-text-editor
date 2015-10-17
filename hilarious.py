@@ -124,7 +124,7 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
   default_file_name = next((
     f for f in hilarious_edited_paths if os.path.isfile(f)
     ),
-    get_filename_relative_to_this_script('test_hilariously_edited.txt')
+    default_default_edited_filename
     )
 
   # editable_files is recomputed when /status is called... okay, I guess?
@@ -133,7 +133,8 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
     nonlocal editable_files
     editable_files = set(f
       for path in hilarious_edited_paths
-      for f in abspath_editable_files_under_or_including(path))
+      for f in abspath_editable_files_under_or_including(path)
+      ) | {default_default_edited_filename}
   recompute_editable_files()
 
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
@@ -220,6 +221,7 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
       recompute_editable_files()
       result = json.dumps({
         "context_name": context_name,
+        "default_file_name": default_file_name,
         "editable_files": list(sorted(editable_files))
       }, sort_keys = True).encode('utf-8')
       self.send_response(200)
@@ -231,14 +233,11 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
     #def open_file(self):
     #  pass
     def get_file_contents(self):
-      if self.headers['X-File'] == None:
-        filename = default_file_name
+      if self.headers['X-File'] in editable_files:
+        filename = self.headers['X-File']
       else:
-        if self.headers['X-File'] in editable_files:
-          filename = self.headers['X-File']
-        else:
-          self.my_error(403)
-          return
+        self.my_error(403)
+        return
 
       self.send_response(200)
       self.send_header('Content-Type', 'text/plain; charset=utf-8')
@@ -257,14 +256,11 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
         return
       length = int(self.headers['Content-Length'])
 
-      if self.headers['X-File'] == None:
-        filename = default_file_name
+      if self.headers['X-File'] in editable_files:
+        filename = self.headers['X-File']
       else:
-        if self.headers['X-File'] in editable_files:
-          filename = self.headers['X-File']
-        else:
-          self.my_error(403)
-          return
+        self.my_error(403)
+        return
 
       # we're going to be saving really often, so it's likely
       # that if the system crashes it'll be during a write,

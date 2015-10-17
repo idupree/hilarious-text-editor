@@ -181,6 +181,8 @@ var state = {
 
   context_name: '',
 
+  default_file_name: null,
+
   // filename: true
   editable_files: {},
 
@@ -340,8 +342,6 @@ function try_save() {
   }
   state.saving.last_sync_attempt = Date.now();
   starting_saving();
-  var f = state.current_file;
-  var which_file_header = ((f != null) ? { 'X-File': f } : {});
   state.saving.save_req = $.ajax({
     url: '/save?'+cachebuster(),
     method: 'POST',
@@ -349,7 +349,7 @@ function try_save() {
     timeout: req_timeout,
     headers: _.assign({},
       {'Content-Type': 'text/plain; charset=utf-8'},
-      which_file_header,
+      {'X-File': state.current_file},
       auth_headers()),
     success: function(data) {
       state.saving.latest_time_that_the_server_has_all_our_data = state.saving.last_sync_success = state.saving.last_sync_attempt;
@@ -725,7 +725,7 @@ function display_which_file_is_current() {
   }
 }
 
-function load_status() {
+function load_status(is_initial_load) {
   return $.ajax({
     url: '/status?'+cachebuster(),
     method: 'POST',
@@ -733,14 +733,20 @@ function load_status() {
     success: function(data) {
       console.log(data);
       state.context_name = data.context_name;
+      state.default_file_name = data.default_file_name;
       display_context_name();
       var all_old_files = state.editable_files;
       var all_new_files = to_set(data.editable_files);
       if(!_.isEqual(all_old_files, all_new_files)) {
         state.editable_files = all_new_files;
         display_editable_files();
-        // links need to be created before DOMReady
-        reload_soon_for_dragon_naturallyspeaking();
+        if(is_initial_load) {
+          // this will lead to reload_soon_for_dragon_naturallyspeaking
+          load(state.default_file_name);
+        } else {
+          // links need to be created before DOMReady
+          reload_soon_for_dragon_naturallyspeaking();
+        }
       }
     }
   });
@@ -841,7 +847,7 @@ function load(f) {
          url: '/get_file_contents?'+cachebuster(),
          method: 'POST',
          headers: _.assign(
-           ((f != null) ? { 'X-File': f } : {}),
+           {'X-File': f},
            auth_headers()),
          success: function(data) {
            if(editor != null) {
@@ -884,8 +890,13 @@ function get_token() {
         token_field.removeEventListener('input', got_input);
         token_field.value = '';
         $('#ask-for-token').remove();
+        // We now have to load status before loading textarea contents
+        // because the status tells us what file to request.
+        // (Note if editing this to do them in parallel, see comments below
+        // about how this is difficult.)
+        load_status(true);
         // load_status is currently called by load and
-        // we can't call it here reliably because load()
+        // we can't call both at once here reliably because load()
         // might finish first and then have us call
         // reload_soon_for_dragon_naturallyspeaking()
         // which would terminate any outstanding ajax requests.
@@ -893,7 +904,7 @@ function get_token() {
         // $(document).ajaxStop, with some finickiness.
         // https://stackoverflow.com/questions/3148225/jquery-active-function
         // load_status();
-        load();
+        // load();
       },
       // try again a short while later, because sometimes
       // the 'input' event arrives before the text does,
