@@ -39,6 +39,27 @@ html_filename = get_filename_relative_to_this_script('hilarious.html')
 
 default_default_edited_filename = get_filename_relative_to_this_script('test_hilariously_edited.txt')
 
+# load page_html each time so that development is faster:
+# fewer things require restarting the server
+def get_editor_html():
+  contentses = {}
+  for filename in ['hilarious.html', 'hilarious.css', 'hilarious.js',
+                   'underscore-min.js', 'jquery.min.js']:
+    with open(get_filename_relative_to_this_script(filename), 'rt', encoding='utf-8') as f:
+      contentses[filename] = f.read()
+
+  # hmm, suboptimal line numbers for debugging
+  return (
+    re.sub(r'HILARIOUS_EDITOR_CSS',
+      lambda _: '\n<style>\n' + contentses['hilarious.css'] + '\n</style>\n',
+    re.sub(r'HILARIOUS_EDITOR_JAVASCRIPT',
+      lambda _: '\n<script>\n// Minified libs, then hilarious-editor code\n\n' +
+      contentses['underscore-min.js'] + '\n\n' +
+      contentses['jquery.min.js'] + '\n\n' +
+      contentses['hilarious.js'] +
+      '\n</script>\n',
+    contentses['hilarious.html'])))
+
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
   pass
 
@@ -178,11 +199,7 @@ def request_handler(server_origin, hilarious_edited_paths = None, auth_token=Non
       self.send_header('Content-Type', 'text/html; charset=utf-8')
       self.boilerplate_headers()
       self.end_headers()
-      # load page_html each time so that development is faster:
-      # fewer things require restarting the server
-      with open(get_filename_relative_to_this_script('hilarious.html'), 'rt', encoding='utf-8') as f:
-        page_html = f.read()
-      self.wfile.write(page_html.encode('utf-8'))
+      self.wfile.write(get_editor_html().encode('utf-8'))
 
     def is_valid_post(self):
       return (

@@ -1,0 +1,137 @@
+/* CSS reset */
+html,body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,button,textarea,select,p,blockquote,th,td{margin:0;padding:0}
+h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:inherit;}
+img{color:transparent;font-size:0;border:0;vertical-align:middle;}
+
+html,body {
+  height: 100%;
+  width: 100%;
+  color: #006;
+  background-color: #fec;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#bar, #linenos, #textarea_container, #textarea_container > textarea {
+  display: inline-block;
+  vertical-align: top;
+  white-space: normal;
+}
+#bar {
+  min-height: 100%;
+  width: 20em;
+  background-color: #cfe;
+}
+#bar > div {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+#linenos {
+  background-color: #fce;
+  text-align: right;
+  padding-left: 2px;
+  padding-right: 2px;
+  white-space: pre;
+}
+/* Min width for linenos, so that it doesn't change width
+   on reasonably small files.  Don't use 'ch' unit because
+   IE gets that wrong and there's a simpler workaround: */
+#linenos::after {
+  content: '0000';
+  height: 1px;
+  visibility: hidden;
+}
+#linenos > a {
+  display: block;
+  text-decoration: none;
+  color: #00f;
+}
+#linenos > a:visited {
+  color: #00f;
+}
+#editor {
+  margin-bottom: 1em;
+}
+#textarea_container > textarea, #testline {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  resize: none;
+  overflow: hidden;
+  border-width: 0px;
+  white-space: pre-wrap;
+}
+#textarea_container, #testline {
+  width: 80ch;
+  padding-left: 3px;
+  background-color: white;
+}
+#textarea_container > textarea {
+  width: 100%;
+}
+#testline {
+  visibility: hidden;
+  position: absolute;
+  left: -1000px;
+  height: 1px;
+}
+#ask-for-token {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background-color: rgba(200, 200, 200, 0.85);
+  text-align: center;
+  display: table;
+}
+#ask-for-token > label {
+  display: table-cell;
+  vertical-align: middle;
+}
+#ask-for-token > label > p {
+  font-size: 2em;
+}
+#token {
+  font-size: 1.2em;
+  font-family: inherit;
+  line-height: inherit;
+  width: 21em;
+  margin-top: 0.5em;
+  height: 2em;
+}
+#context_name {
+  padding: 0.5em;
+  font-weight: bold;
+  word-wrap: break-word;
+  margin-left: 2em;
+  text-indent: -2em;
+}
+#editable_files > a {
+  display: block;
+  padding: 0.5em; /* expand the click target by using padding */
+}
+#editable_files > a.current-file {
+  font-weight: bold;
+}
+#notes {
+  padding: 2.5em 0.5em 0;
+}
+.textarea_with_linenos {
+  display: inline-block;
+  display: inline-flex;
+}
+#linenos {
+  order: 1;
+}
+#textarea_container {
+  order: 2;
+}
+/* Workaround for IE, which doesn't implement <wbr>, not even IE11.
+   The character is U+200B ZERO WIDTH SPACE, which allows line breaking
+   like a regular space character does.  CSS generated content is not part of
+   the DOM, so thankfully the ZERO WIDTH SPACE will not appear in
+   the clipboard if the user copies text that includes <wbr>s. */
+wbr:before { content:"\200B"; }
+
