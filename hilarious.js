@@ -16,6 +16,17 @@ if(window.console === undefined) {
   window.console = { log: function() {} };
 }
 
+function escape_for_css_selector_attr_value(str) {
+  // see http://www.w3.org/TR/CSS21/syndata.html#strings
+  return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+function escape_for_js_regexp(str) {
+  // from http://stackoverflow.com/a/3561711
+  // which escapes - and / and everything in escapeRegExp in
+  // https://developer.mozilla.org/en/docs/Web/JavaScript/Guide/Regular_Expressions
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
 var editor = null;
 var save_status = document.getElementById('save-status');
 
@@ -651,10 +662,12 @@ function search_input(e) {
   var searcheds = _.filter(searched.split(/[ \t\r\n]/), function(s) {
     return s !== '';
   });
+  var searched_regexps = _.map(searcheds, function(s) {
+    return new RegExp(escape_for_js_regexp(s), 'i');
+  });
   var found = _.filter(_.keys(state.editable_files).sort(), function(f) {
-    return _.every(searcheds, function(s) {
-      console.log(f, s, f.indexOf(s) !== -1);
-      return f.indexOf(s) !== -1;
+    return _.every(searched_regexps, function(s) {
+      return s.test(f);
     });
   });
   console.log(found);
@@ -760,11 +773,6 @@ function fix_reflow_bugs() {
       editor.setSelectionRange(selstart, selend, seldir);
     }, 0);
   }
-}
-
-function escape_for_css_selector_attr_value(str) {
-  // see http://www.w3.org/TR/CSS21/syndata.html#strings
-  return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
 // "total" as in "always has a meaningful return value"
