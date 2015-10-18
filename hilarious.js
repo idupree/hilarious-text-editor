@@ -656,6 +656,26 @@ function display_choices(choice_ids, choice_htmls) {
   });
 }
 
+// inspirations from http://stackoverflow.com/q/1916218
+// TODO I really only want to get the portion of common
+// prefix that consists of complete grapheme clusters
+// (see e.g. https://github.com/devongovett/grapheme-breaker )
+// - is that worth implementing?
+function common_prefix(strings) {
+  if(strings.length === 0) {
+    return '';
+  }
+  var highest = _.reduce(strings, function(a, b) { return a > b ? a : b });
+  var lowest  = _.reduce(strings, function(a, b) { return a > b ? b : a });
+  var max_len = Math.min(highest.length, lowest.length);
+  var i = 0;
+  while(i < max_len && lowest.charAt(i) === highest.charAt(i)) {
+    i += 1;
+  }
+  return lowest.substring(0, i);
+}
+
+
 var $search_input = $('#search_input');
 function search_input(e) {
   var searched = $search_input.val();
@@ -670,8 +690,15 @@ function search_input(e) {
       return s.test(f);
     });
   });
-  console.log(found);
-  display_choices(found, _.map(found, wrappable_file_name_html));
+  var found_common_prefix = common_prefix(found);
+  var found_common_prefix_len = found_common_prefix.length;
+  var show_found = _.map(found, function(f) {
+    return f.substring(found_common_prefix_len);
+  });
+
+  $('#choices_heading').html("in " + wrappable_file_name_html(found_common_prefix));
+
+  display_choices(found, _.map(show_found, wrappable_file_name_html));
 }
 $search_input.on('input', search_input);
 
