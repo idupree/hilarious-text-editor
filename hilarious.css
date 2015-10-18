@@ -40,6 +40,13 @@ body {
   margin-top: 1em;
   margin-bottom: 1em;
 }
+#choices > a {
+  display: block;
+  padding: 0.7em;
+}
+#choices > a[href] > span.name, #choices > a[href] > span.sep {
+  font-weight: bold;
+}
 #linenos {
   background-color: #fce;
   text-align: right;

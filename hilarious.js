@@ -601,6 +601,77 @@ function display_editable_files() {
   });
 }
 
+// Arbitrarily use NATO phonetic alphabet.
+// Leaving out some of the NATO phonetic alphabet that
+// we empirically had more trouble with, since we don't
+// need as many as 26 of them.
+var distinguishable_words = [
+    'Bravo', 'Charlie', 'Foxtrot', 'Hotel', 'India', 'Juliett', 'Lima',
+    'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra',
+    'Tango', 'Uniform', 'Victor', 'Whiskey', 'X-ray', 'Yankee'
+    ];
+
+// initial so that Dragon will recognize these as links
+function initial_display_choices() {
+  var $choices = $('#choices');
+  _.each(distinguishable_words, function(word, i) {
+    $choices.append($('<a>')
+      .attr('href', 'javascript:;')
+      .append($('<span>').addClass('name').text(word))
+      .append($('<span>').addClass('sep'))
+      .append($('<span>').addClass('val'))
+      );
+  });
+}
+initial_display_choices();
+
+// arguments should be the same length
+function display_choices(choice_ids, choice_htmls) {
+  // Keep the DOM elements around in case the accessibility technology
+  // does better that way
+  //var $choices = $('#choices');
+  var len = choice_ids.length;
+  if(len !== choice_htmls.length) {
+    throw("display_choices: lengths differ");
+  }
+  $('#choices > a').each(function(index) {
+    var active = (index < len);
+    var val = (active ? choice_htmls[index] : "");
+    var sep = (active ? ': ' : '');
+    $('.sep', this).text(sep);
+    $('.val', this).html(val);
+    $(this).attr('href', (active ? 'javascript:;' : null));
+    $(this).attr('data-val', (active ? choice_ids[index] : null));
+  });
+}
+
+var $search_input = $('#search_input');
+function search_input(e) {
+  var searched = $search_input.val();
+  var searcheds = _.filter(searched.split(/[ \t\r\n]/), function(s) {
+    return s !== '';
+  });
+  var found = _.filter(_.keys(state.editable_files).sort(), function(f) {
+    return _.every(searcheds, function(s) {
+      console.log(f, s, f.indexOf(s) !== -1);
+      return f.indexOf(s) !== -1;
+    });
+  });
+  console.log(found);
+  display_choices(found, _.map(found, wrappable_file_name_html));
+}
+$search_input.on('input', search_input);
+
+$('#choices').on('click', 'a[href][data-val]', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  var f = $(this).attr('data-val');
+  console.log(f);
+  load(f);
+});
+
+
+
 function display_context_name() {
   var title = state.context_name;
   if(state.current_file != null) {
