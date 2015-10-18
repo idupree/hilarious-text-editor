@@ -414,40 +414,6 @@ var debounced_compute_line_numbers = _.debounce(compute_line_numbers, 50);
 
 $('#textarea_container').on('input', 'textarea', editor_input);
 
-var event_testing_code = true;
-if(event_testing_code) {
-  (function() {
-    var $st = $('<div>');
-    $st.insertAfter('label[for="search_input"]');
-    var tyz = ['input', 'selectionchange', 'selectstart', 'mousedown', 'click', 'mouseup', 'keydown', 'keyup', 'keypress'];
-    _.each(tyz, function(eventType) {
-      $('#textarea_container').on(eventType, 'textarea', function() {
-        $st.append($('<p>').text('textarea-' + eventType + ':' + editor.selectionStart));
-      });
-    });
-    _.each(tyz, function(eventType) {
-      $('label').on(eventType, function() {
-        $st.append($('<p>').text('label-' + eventType + ':' + editor.selectionStart));
-      });
-    });
-    _.each(tyz, function(eventType) {
-      $('input').on(eventType, function() {
-        $st.append($('<p>').text('input-' + eventType + ':' + editor.selectionStart));
-      });
-    });
-    _.each(tyz, function(eventType) {
-      $('#context_name').on(eventType, function() {
-        $st.append($('<p>').text('contn-' + eventType + ':' + editor.selectionStart));
-      });
-    });
-    _.each(tyz, function(eventType) {
-      $(document).on(eventType, function() {
-        $st.append($('<p>').text('docu-' + eventType + ':' + editor.selectionStart));
-      });
-    });
-  }());
-}
-
 // Make page up and page down scroll the screen rather than the cursor.
 //
 // Page up/down happen on keydown, not keyup, emperically.
