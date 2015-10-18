@@ -464,6 +464,7 @@ if(event_testing_code) {
 // as of Sept 2015.
 var page_up_key_num = 33;
 var page_down_key_num = 34;
+var tab_key_num = 9;
 function editor_keydown(e) {
   if(e.which === page_up_key_num || e.which === page_down_key_num) {
     e.preventDefault();
@@ -476,7 +477,42 @@ function editor_keydown(e) {
   }
 }
 
+// Make (shift)-tabbing to the textarea not delete your cursor position:
+// - IE puts the cursor at the end of the textarea
+// - Chrome puts the cursor at the beginning of the textarea
+// - Firefox, thankfully, doesn't move the cursor
+var tab_saved_selection_location = null;
+var tab_saved_time = null;
+function document_keydown(e) {
+  if(e.which === tab_key_num) {
+    tab_saved_selection_location = editor_selection_location();
+    tab_saved_time = Date.now();
+  }
+}
+function document_keyup(e) {
+  if(e.which === tab_key_num) {
+    tab_saved_selection_location = null;
+    tab_saved_time = null;
+  }
+}
+// (selectionchange only fires on the document element)
+function document_selectionchange(e) {
+  if(tab_saved_time != null) {
+    // It's possible for there to be a keydown without a keyup
+    // -- the user can switch to a non-browser window while holding
+    // down tab -- so guess this happened based on time passing.
+    if(tab_saved_time + 5000 > Date.now()) {
+      set_editor_selection_location(tab_saved_selection_location);
+    }
+    tab_saved_selection_location = null;
+    tab_saved_time = null;
+  }
+}
+
 $('#textarea_container').on('keydown', 'textarea', editor_keydown);
+$(document).on('keydown', document_keydown);
+$(document).on('keyup', document_keyup);
+$(document).on('selectionchange', document_selectionchange);
 
 function repeat(str, count) {
   if(str.repeat) {
@@ -690,22 +726,34 @@ function total_current_file() {
   }
 }
 
-function save_selection_location() {
-  var file = total_current_file();
-  state.remembered_selections[file] = {
+function equal_selection_locations(sel1, sel2) {
+  return (
+    sel1.selectionStart === sel2.selectionStart &&
+    sel1.selectionEnd === sel2.selectionEnd &&
+    sel1.selectionDirection === sel2.selectionDirection);
+}
+function editor_selection_location() {
+  return {
     selectionStart: editor.selectionStart,
     selectionEnd: editor.selectionEnd,
     selectionDirection: editor.selectionDirection
   };
 }
+function set_editor_selection_location(sel) {
+  editor.setSelectionRange(
+    sel.selectionStart,
+    sel.selectionEnd,
+    sel.selectionDirection
+  );
+}
+function save_selection_location() {
+  var file = total_current_file();
+  state.remembered_selections[file] = editor_selection_location();
+}
 function restore_selection_location() {
   var file = total_current_file();
   if(state.remembered_selections[file]) {
-    editor.setSelectionRange(
-      state.remembered_selections[file].selectionStart,
-      state.remembered_selections[file].selectionEnd,
-      state.remembered_selections[file].selectionDirection
-    );
+    set_editor_selection_location(state.remembered_selections[file]);
   } else {
     editor.setSelectionRange(0, 0);
   }
