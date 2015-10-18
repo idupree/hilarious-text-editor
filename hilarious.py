@@ -146,12 +146,6 @@ def request_handler(server_origin,
   if auth_token != None:
     auth_token = hashlib.sha384(auth_token.encode('ascii')).digest()
 
-  default_file_name = next((
-    f for f in hilarious_edited_paths if os.path.isfile(f)
-    ),
-    default_default_edited_filename
-    )
-
   # editable_files is recomputed when /status is called... okay, I guess?
   editable_files = set()
   def recompute_editable_files():
@@ -160,8 +154,10 @@ def request_handler(server_origin,
       for path in hilarious_edited_paths
       for f in abspath_editable_files_under_or_including(path)
       if not exclude_paths(f)
-      ) | {default_default_edited_filename}
+      )
   recompute_editable_files()
+
+  default_file_name = min(editable_files)
 
   #open_file = open(filename, 'r+t', encoding='utf-8', errors='surrogateescape', newline=None)
   #todo: keep the file open ONLY so that other windows processes know not to mess with it
