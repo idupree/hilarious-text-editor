@@ -100,7 +100,7 @@ def editable_as_text(fname):
 # exclude all file paths with newlines and similar weird characters in them:
 # they are trouble and no use
 def exclude_dir(d):
-  return re.search(r'/\.git($|/)|[\x00-\x1f\x7f]', d)
+  return re.search(r'[\\/]\.git($|[\\/])|[\x00-\x1f\x7f]', d)
 
 def exclude_file(f):
   return (
