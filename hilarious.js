@@ -489,8 +489,19 @@ function document_keydown(e) {
     tab_saved_time = Date.now();
   }
 }
+function possibly_restore_editor_selection_location() {
+  if(tab_saved_selection_location != null) {
+    var new_sel = editor_selection_location();
+    if(!equal_selection_locations(new_sel, tab_saved_selection_location)) {
+      set_editor_selection_location(tab_saved_selection_location);
+      tab_saved_selection_location = null;
+      tab_saved_time = null;
+    }
+  }
+}
 function document_keyup(e) {
   if(e.which === tab_key_num) {
+    possibly_restore_editor_selection_location();
     tab_saved_selection_location = null;
     tab_saved_time = null;
   }
@@ -502,13 +513,15 @@ function document_selectionchange(e) {
     // -- the user can switch to a non-browser window while holding
     // down tab -- so guess this happened based on time passing.
     if(tab_saved_time + 5000 > Date.now()) {
+      possibly_restore_editor_selection_location();
       // without a delay, this works for Chrome but not IE
-      setTimeout(function() {
-        set_editor_selection_location(tab_saved_selection_location);
-      }, 1);
+      //setTimeout(function() {
+      //  set_editor_selection_location(tab_saved_selection_location);
+      //}, 1);
+    } else {
+      tab_saved_selection_location = null;
+      tab_saved_time = null;
     }
-    tab_saved_selection_location = null;
-    tab_saved_time = null;
   }
 }
 
