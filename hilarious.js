@@ -712,13 +712,15 @@ $('#choices').on('click', 'a[href][data-val]', function(e) {
 
 
 
+// TODO should I still show the context name somehow? maybe by formatting
+// a portion of the current file differently that's part of the context name?
 function display_context_name() {
-  var title = state.context_name;
-  if(state.current_file != null) {
-    title += '/' + state.current_file;
-  }
-  $('title').text(title);
-  $('#context_name').html(wrappable_file_name_html(state.context_name));
+  var current_file_or_context = (
+    (state.current_file != null)
+      ? state.current_file
+      : state.context_name);
+  $('title').text(current_file_or_context);
+  $('#context_name').html(wrappable_file_name_html(current_file_or_context));
 }
 
 // (display_editable_files() does this implicitly, so no need to
