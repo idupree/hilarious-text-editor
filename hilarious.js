@@ -710,6 +710,17 @@ $('#choices').on('click', 'a[href][data-val]', function(e) {
   load(f);
 });
 
+// Wait until noticeably after DOMLoad in the hopes that Dragon
+// will do its processing of the page before this happens. We want
+// Dragon to see the links with just the base text in them, and
+// to see as many as fit on the page with each taking up only a
+// single line (long values can make them take up multiple lines).
+$(function() {
+  setTimeout(function() {
+    search_input();
+  }, 1500);
+});
+
 
 
 // TODO should I still show the context name somehow? maybe by formatting
