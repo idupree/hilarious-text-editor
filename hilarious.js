@@ -732,6 +732,7 @@ function display_context_name() {
 // (display_editable_files() does this implicitly, so no need to
 //  call this if you call that)
 function display_which_file_is_current() {
+  display_context_name();
   var $file_lines = $('#editable_files > a');
   $file_lines.removeClass('current-file');
   if(state.current_file != null) {
