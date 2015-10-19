@@ -220,7 +220,7 @@ function try_save() {
 }
 var debounced_save = _.debounce(try_save, 2500);
 
-var adjust_editor_height_for_dragon = function(no_need_to_reload_page_for_dragon) {
+function adjust_editor_height_for_dragon(no_need_to_reload_page_for_dragon) {
   // For Dragon, keep the textarea longer than necessary
   // so that we don't have to reload the document as often
   // (we need to reload the document every time we change
@@ -591,7 +591,7 @@ function set_difference(minuend, subtrahend) {
   return result;
 }
 function set_sorted(set) {
-  return _.sortBy(_.keys(set))
+  return _.sortBy(_.keys(set));
 }
 function set_size(set) {
   return _.size(set);
@@ -665,8 +665,8 @@ function common_prefix(strings) {
   if(strings.length === 0) {
     return '';
   }
-  var highest = _.reduce(strings, function(a, b) { return a > b ? a : b });
-  var lowest  = _.reduce(strings, function(a, b) { return a > b ? b : a });
+  var highest = _.reduce(strings, function(a, b) { return a > b ? a : b; });
+  var lowest  = _.reduce(strings, function(a, b) { return a > b ? b : a; });
   var max_len = Math.min(highest.length, lowest.length);
   var i = 0;
   while(i < max_len && lowest.charAt(i) === highest.charAt(i)) {
@@ -960,8 +960,8 @@ window.reload_while_keeping_state = reload_while_keeping_state;
 // Run right now, before DOMReady so that Dragon NaturallySpeaking will
 // be able to notice any links that we render now.
 (function(){
-var stateJSON;
-if(stateJSON = sessionStorage.getItem('hilarious_editor_state')) {
+var stateJSON = sessionStorage.getItem('hilarious_editor_state');
+if(stateJSON != null) {
   sessionStorage.removeItem('hilarious_editor_state');
   state = JSON.parse(stateJSON);
   if(state.textarea_value != null) {
