@@ -719,8 +719,14 @@ function display_context_name() {
     (state.current_file != null)
       ? state.current_file
       : state.context_name);
-  $('title').text(current_file_or_context);
-  $('#context_name').html(wrappable_file_name_html(current_file_or_context));
+  // Don't change the page title if no change is needed.
+  // Some things listen for page-title change, like Firefox
+  // pinned tab notifications (though this code might be
+  // unnecessarily cautious).
+  if($('title').text() !== current_file_or_context) {
+    $('title').text(current_file_or_context);
+    $('#context_name').html(wrappable_file_name_html(current_file_or_context));
+  }
 }
 
 // (display_editable_files() does this implicitly, so no need to
