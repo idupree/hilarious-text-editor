@@ -56,6 +56,14 @@ var state = {
   }
 };
 
+//cached (for some reason):
+// line_code_unit_indexes:
+// Array.
+// keys: line numbers starting at 0, and one-past-the-and
+// values: the index into editor.value at the beginning of that line
+//   (indexes are in UTF-16 code units, per javascript).
+var line_code_unit_indexes = null;
+
 // make the state visible in the web console, for debugging.
 window.hilarious_editor_state = state;
 
@@ -375,8 +383,13 @@ function compute_line_numbers() {
   var s = '';
   var line_height = textarea_line_height();
   var $testline = $('#testline');
+  var end_idx_of_previous_line = 0;
+  line_code_unit_indexes = [];
   _.each(textarea_lines, function(line, idx) {
     var lineno = idx + 1;
+    line_code_unit_indexes.push(end_idx_of_previous_line);
+    // +1 for the \n
+    end_idx_of_previous_line += line.length + 1;
     // This len/80 version didn't work in some weird cases with long lines
     // where the browsers decide to wrap the lines earlier
     // than the 80th character.  The details seem hard to predict
@@ -406,6 +419,7 @@ function compute_line_numbers() {
       --lines;
     }
   });
+  line_code_unit_indexes.push(end_idx_of_previous_line);
   $testline.empty();
   var $linenos = $('#linenos');
   // It's probably faster not to modify the DOM if there's no change.
@@ -719,6 +733,47 @@ $(function() {
   setTimeout(function() {
     search_input();
   }, 1500);
+});
+
+
+var $go_to_line_input = $('#go_to_line_input');
+var $go_to_line_form = $('#go_to_line_form');
+function go_to_line() {
+  var val = $go_to_line_input.val().trim();
+  var min_line = 1;
+  var max_line = line_code_unit_indexes.length - 1;
+  var after_max_line = line_code_unit_indexes.length;
+  var line_number = null;
+  // $: last line, as in vim, but after the end because that's
+  // probably more useful?
+  if(val == '$') {
+    line_number = after_max_line;
+  } else if(
+      /^[0-9]+$/.test(val) &&
+          +val >= min_line && +val <= max_line
+    ) {
+    line_number = +val;
+  }
+  if(line_number != null) {
+    $(editor).focus();
+    set_editor_selection_location({
+      selectionStart: line_code_unit_indexes[line_number - 1],
+      selectionEnd:   line_code_unit_indexes[line_number - 1]
+    });
+    save_selection_location();
+  }
+}
+$go_to_line_input.on('paste', function() {
+  // https://stackoverflow.com/questions/13895059/how-to-alert-after-paste-event-in-javascript
+  setTimeout(go_to_line, 0);
+});
+//$go_to_line_input.on('keydown', function
+// https://stackoverflow.com/questions/11365632/how-to-detect-when-the-user-presses-enter-in-an-input-field
+// Using a <form> instead of this so that all methods of form submission
+// that a user-agent provides, whatever they may be, will work.
+$go_to_line_form.on('submit', function(e) {
+  e.preventDefault();
+  go_to_line();
 });
 
 
