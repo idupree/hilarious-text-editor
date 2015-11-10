@@ -737,9 +737,7 @@ $(function() {
 
 
 var $go_to_line_input = $('#go_to_line_input');
-var $go_to_line_form = $('#go_to_line_form');
 var $select_lines_input = $('#select_lines_input');
-var $select_lines_form = $('#select_lines_form');
 function line_number_from_text(text) {
   var val = text.trim();
   var min_line = 1;
@@ -817,9 +815,10 @@ function select_lines() {
     save_selection_location();
   }
 }
+var enter_key_num = 13;
 _.each([
-  { $input: $go_to_line_input, $form: $go_to_line_form, action: go_to_line },
-  { $input: $select_lines_input, $form: $select_lines_form, action: select_lines }
+  { $input: $go_to_line_input, action: go_to_line },
+  { $input: $select_lines_input, action: select_lines }
   ], function(d) {
   // Dragon triggers a paste event for the whole series of numbers you put in,
   // so automatically going without submit in that case is convenient.
@@ -829,12 +828,22 @@ _.each([
     // https://stackoverflow.com/questions/13895059/how-to-alert-after-paste-event-in-javascript
     setTimeout(d.action, 0);
   });
-  // Using a <form> instead of keydown 'enter' event so that
+  // I tried using a <form> instead of keydown 'enter' event so that
   // all methods of form submission that a user-agent provides,
   // whatever they may be, will work.
-  d.$form.on('submit', function(e) {
-    e.preventDefault();
-    d.action();
+  // Sadly, using <form> seemed to confuse Dragon.
+  d.$input.on('keydown', function(e) {
+    // https://stackoverflow.com/questions/11365632/how-to-detect-when-the-user-presses-enter-in-an-input-field
+    if(e.which === enter_key_num) {
+      // preventDefault so that the keyup does not input
+      // an enter character to the editor textarea.
+      // Alternately I could have this event detect keyup,
+      // but that would mean a bit more latency to the user
+      // who presses and releases Enter, which felt very
+      // slightly confusing to me.
+      e.preventDefault();
+      d.action();
+    }
   });
 });
 
