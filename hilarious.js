@@ -738,8 +738,10 @@ $(function() {
 
 var $go_to_line_input = $('#go_to_line_input');
 var $go_to_line_form = $('#go_to_line_form');
-function go_to_line() {
-  var val = $go_to_line_input.val().trim();
+var $select_lines_input = $('#select_lines_input');
+var $select_lines_form = $('#select_lines_form');
+function line_number_from_text(text) {
+  var val = text.trim();
   var min_line = 1;
   var max_line = line_code_unit_indexes.length - 1;
   var after_max_line = line_code_unit_indexes.length;
@@ -747,13 +749,53 @@ function go_to_line() {
   // $: last line, as in vim, but after the end because that's
   // probably more useful?
   if(val == '$') {
-    line_number = after_max_line;
+    return after_max_line;
   } else if(
-      /^[0-9]+$/.test(val) &&
-          +val >= min_line && +val <= max_line
+      /^[0-9]+$/.test(val)
     ) {
-    line_number = +val;
+    var line_number = +val;
+    if(line_number < min_line) {
+      line_number = min_line;
+    }
+    if(line_number > after_max_line) {
+      line_number = after_max_line;
+    }
+    return line_number;
+  } else {
+    return null;
   }
+}
+// "3" -- range includes all of line three
+// "3-5" -- range includes all of lines three, four and five
+// "5-3" -- same as "3-5", currently
+function line_range_from_text(text) {
+  var min_line = 1;
+  var max_line = line_code_unit_indexes.length - 1;
+  var after_max_line = line_code_unit_indexes.length;
+  var line_range;
+  if(/-/.test(text)) {
+    var beginendtexts = text.split(/-+/);
+    if(beginendtexts.length !== 2) {
+      return null;
+    }
+    line_range = beginendtexts.map(line_number_from_text).sort();
+  } else {
+    var line_number = line_number_from_text(text);
+    line_range = [line_number, line_number];
+  }
+  if(line_range[0] == null || line_range[1] == null) {
+    return null;
+  }
+  if(line_range[0] < min_line) {
+    line_range[0] = min_line;
+  }
+  if(line_range[1] > max_line) {
+    line_range[1] = max_line;
+  }
+  return line_range;
+}
+function go_to_line() {
+  var line_number = line_number_from_text($go_to_line_input.val());
   if(line_number != null) {
     $(editor).focus();
     set_editor_selection_location({
@@ -763,17 +805,37 @@ function go_to_line() {
     save_selection_location();
   }
 }
-$go_to_line_input.on('paste', function() {
-  // https://stackoverflow.com/questions/13895059/how-to-alert-after-paste-event-in-javascript
-  setTimeout(go_to_line, 0);
-});
-//$go_to_line_input.on('keydown', function
-// https://stackoverflow.com/questions/11365632/how-to-detect-when-the-user-presses-enter-in-an-input-field
-// Using a <form> instead of this so that all methods of form submission
-// that a user-agent provides, whatever they may be, will work.
-$go_to_line_form.on('submit', function(e) {
-  e.preventDefault();
-  go_to_line();
+function select_lines() {
+  // line_range is an array [begin, end]
+  var line_range = line_range_from_text($select_lines_input.val());
+  if(line_range != null) {
+    $(editor).focus();
+    set_editor_selection_location({
+      selectionStart: line_code_unit_indexes[line_range[0] - 1],
+      selectionEnd:   line_code_unit_indexes[line_range[1]]
+    });
+    save_selection_location();
+  }
+}
+_.each([
+  { $input: $go_to_line_input, $form: $go_to_line_form, action: go_to_line },
+  { $input: $select_lines_input, $form: $select_lines_form, action: select_lines }
+  ], function(d) {
+  // Dragon triggers a paste event for the whole series of numbers you put in,
+  // so automatically going without submit in that case is convenient.
+  // However, it is very inconvenient if you are constructing your
+  // field out of pieces.  Tradeoff.
+  d.$input.on('paste', function() {
+    // https://stackoverflow.com/questions/13895059/how-to-alert-after-paste-event-in-javascript
+    setTimeout(d.action, 0);
+  });
+  // Using a <form> instead of keydown 'enter' event so that
+  // all methods of form submission that a user-agent provides,
+  // whatever they may be, will work.
+  d.$form.on('submit', function(e) {
+    e.preventDefault();
+    d.action();
+  });
 });
 
 
