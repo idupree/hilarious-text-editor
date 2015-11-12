@@ -31,6 +31,7 @@ import socket, socketserver, http.server
 import subprocess
 import json
 import argparse
+import mimetypes
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
 def get_filename_relative_to_this_script(name):
@@ -39,25 +40,36 @@ html_filename = get_filename_relative_to_this_script('hilarious.html')
 
 default_default_edited_filename = get_filename_relative_to_this_script('test_hilariously_edited.txt')
 
+def guess_mimetype(filename):
+  if(filename[-4:] == '.css'):
+    return 'text/css; charset=utf-8'
+  elif(filename[-3:] == '.js'):
+    return 'text/javascript; charset=utf-8'
+  else:
+    return mimetypes.guess_type(filename, strict=False)
+
+
+static_resources = [
+  'hilarious.html', 'hilarious.css', 'hilarious.js',
+  'underscore-min.js', 'jquery.min.js',
+  ]
 # load page_html each time so that development is faster:
 # fewer things require restarting the server
 def get_editor_html():
   contentses = {}
-  for filename in ['hilarious.html', 'hilarious.css', 'hilarious.js',
-                   'underscore-min.js', 'jquery.min.js']:
+  for filename in static_resources:
     with open(get_filename_relative_to_this_script(filename), 'rt', encoding='utf-8') as f:
       contentses[filename] = f.read()
 
   # hmm, suboptimal line numbers for debugging
   return (
     re.sub(r'HILARIOUS_EDITOR_CSS',
-      lambda _: '\n<style>\n' + contentses['hilarious.css'] + '\n</style>\n',
-    re.sub(r'HILARIOUS_EDITOR_JAVASCRIPT',
-      lambda _: '\n<script>\n// Minified libs, then hilarious-editor code\n\n' +
-      contentses['underscore-min.js'] + '\n\n' +
-      contentses['jquery.min.js'] + '\n\n' +
-      contentses['hilarious.js'] +
-      '\n</script>\n',
+      lambda _: '<link rel="stylesheet" href="/hilarious.css" />',
+    re.sub(r'HILARIOUS_EDITOR_JAVASCRIPT', '''
+      <script src="/underscore-min.js"></script>
+      <script src="/jquery.min.js"></script>
+      <script src="/hilarious.js"></script>
+''',
     contentses['hilarious.html'])))
 
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -177,6 +189,8 @@ def request_handler(server_origin,
         self.my_error(404)
       elif self.path == '/':
         self.editor()
+      elif self.path[1:] in static_resources:
+        self.static_resource(self.path[1:])
       else:
         self.my_error(404)
 
@@ -201,6 +215,18 @@ def request_handler(server_origin,
       self.boilerplate_headers()
       self.end_headers()
       self.wfile.write(get_editor_html().encode('utf-8'))
+
+    def static_resource(self, filename):
+      if not filename in static_resources:
+        self.my_error(403)
+        return
+      mimetype = guess_mimetype(filename)
+      self.send_response(200)
+      self.send_header('Content-Type', mimetype)
+      self.boilerplate_headers()
+      self.end_headers()
+      with open(get_filename_relative_to_this_script(filename), 'rb') as f:
+        self.wfile.write(f.read())
 
     def is_valid_post(self):
       return (
