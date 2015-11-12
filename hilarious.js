@@ -3,7 +3,7 @@
 
 window.hilarious = {};
 
-hilarious.reload_page_as_needed_for_dragon_naturallyspeaking = true;
+hilarious.reload_page_as_needed_for_dragon_naturallyspeaking = (window.annyang == null);
 hilarious.attempt_to_auto_indent_when_user_enters_a_newline = true;
 
 function reload_soon_for_dragon_naturallyspeaking() {
