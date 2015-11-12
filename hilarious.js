@@ -521,32 +521,11 @@ $(document).on('keydown', document_keydown);
 $(document).on('keyup', document_keyup);
 $(document).on('selectionchange', document_selectionchange);
 
-function repeat(str, count) {
-  if(str.repeat) {
-    return str.repeat(count);
-  } else {
-    // shorter version of
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/repeat
-    var rpt = '';
-    for (;;) {
-      if ((count & 1) == 1) {
-        rpt += str;
-      }
-      count >>>= 1;
-      if (count === 0) {
-        break;
-      }
-      str += str;
-    }
-    return rpt;
-  }
-}
-
 function fix_ch_unit() {
   var fix_needed = false;
   var font_size_str = $('#testline').css('font-size');
   var font_size = +font_size_str.replace(/px$/, '');
-  var zeroes = repeat('0', intended_editor_width);
+  var zeroes = '0'.repeat(intended_editor_width);
   var $a = $('<div/>').text(zeroes).css({'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
   var $b = $('<div/>').css({'width': intended_editor_width+'ch', 'font-size': font_size_str, 'visibility': 'hidden', 'position': 'absolute', 'top': '0', 'left': '0'});
   $(document.body).append($a, $b);
