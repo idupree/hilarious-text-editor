@@ -1,11 +1,13 @@
 (function(){
 "use strict";
 
-var reload_page_as_needed_for_dragon_naturallyspeaking = true;
-var attempt_to_auto_indent_when_user_enters_a_newline = true;
+window.hilarious = {};
+
+hilarious.reload_page_as_needed_for_dragon_naturallyspeaking = true;
+hilarious.attempt_to_auto_indent_when_user_enters_a_newline = true;
 
 function reload_soon_for_dragon_naturallyspeaking() {
-  if(reload_page_as_needed_for_dragon_naturallyspeaking) {
+  if(hilarious.reload_page_as_needed_for_dragon_naturallyspeaking) {
     setTimeout(function(){
       reload_while_keeping_state();
     }, 0);
@@ -27,7 +29,7 @@ function escape_for_js_regexp(str) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
-var editor = null;
+var editor = hilarious.editor = null;
 var save_status = document.getElementById('save-status');
 
 var state = {
@@ -122,7 +124,7 @@ function set_textarea_contents(text) {
 
   $('#textarea_container').append(new_textarea);
 
-  editor = new_textarea;
+  editor = hilarious.editor = new_textarea;
 }
 
 
@@ -255,7 +257,7 @@ var debounced_adjust_editor_height_for_dragon = _.debounce(adjust_editor_height_
 //var debounced_editorchange_less_urgent = _.debounce(editorchange_less_urgent, 2500);
 
 function adjust_editor_height(no_need_to_reload_page_for_dragon) {
-  if(reload_page_as_needed_for_dragon_naturallyspeaking) {
+  if(hilarious.reload_page_as_needed_for_dragon_naturallyspeaking) {
     debounced_adjust_editor_height_for_dragon(no_need_to_reload_page_for_dragon);
   } else {
     if(editor.scrollHeight > editor.clientHeight) {
@@ -298,7 +300,7 @@ function compute_line_numbers() {
   var new_sel = state.remembered_selections[total_current_file()];
   var textarea_lines = state.textarea_value.split('\n');
   //console.log("d");
-  if(attempt_to_auto_indent_when_user_enters_a_newline) {
+  if(hilarious.attempt_to_auto_indent_when_user_enters_a_newline) {
      // Dragon sometimes deletes trailing spaces on a line when
      // adding a newline, and the common-prefix code should deal fine
      // with that deletion, so allow this code to trigger on shrinking
