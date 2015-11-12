@@ -52,6 +52,7 @@ def guess_mimetype(filename):
 static_resources = [
   'hilarious.html', 'hilarious.css', 'hilarious.js',
   'underscore-min.js', 'jquery.min.js',
+  'polyfills.js',
   ]
 # load page_html each time so that development is faster:
 # fewer things require restarting the server
@@ -68,6 +69,7 @@ def get_editor_html():
     re.sub(r'HILARIOUS_EDITOR_JAVASCRIPT', '''
       <script src="/underscore-min.js"></script>
       <script src="/jquery.min.js"></script>
+      <script src="/polyfills.js"></script>
       <script src="/hilarious.js"></script>
 ''',
     contentses['hilarious.html'])))

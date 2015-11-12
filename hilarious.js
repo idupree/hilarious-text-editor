@@ -14,10 +14,6 @@ function reload_soon_for_dragon_naturallyspeaking() {
   }
 }
 
-if(window.console === undefined) {
-  window.console = { log: function() {} };
-}
-
 function escape_for_css_selector_attr_value(str) {
   // see http://www.w3.org/TR/CSS21/syndata.html#strings
   return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
