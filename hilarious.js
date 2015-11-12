@@ -71,18 +71,19 @@ function cachebuster() {
   return '' + Date.now() + Math.random();
 }
 
-function auth_headers() {
+function auth_headers(tested_token) {
+  var token = (tested_token != null ? tested_token : state.auth_token);
   return {
     'X-Please-Believe-I-Am-Not-Cross-Domain': 'yes',
-    'X-Token': state.auth_token
+    'X-Token': token
   };
 }
 
-function test_auth(callback, failure_callback) {
+function test_auth(tested_token, callback, failure_callback) {
   $.ajax({
     url: '/test_post_works?'+cachebuster(),
     method: 'POST',
-    headers: auth_headers(),
+    headers: auth_headers(tested_token),
     success: callback,
     failure: failure_callback
   });
@@ -1021,12 +1022,14 @@ function load(f) {
 function get_token() {
   var token_field = document.getElementById('token');
   var done = false;
-  function token_worked() {
+  function token_worked(token) {
+    return function() {
         if(done){return;}
         done = true;
-        token_field.removeEventListener('input', got_input);
+        token_field.removeEventListener('input', debounced_got_input);
         token_field.value = '';
         $('#ask-for-token').remove();
+        state.auth_token = token;
         sessionStorage.setItem('hilarious_editor_token', state.auth_token);
         // We now have to load status before loading textarea contents
         // because the status tells us what file to request.
@@ -1043,30 +1046,24 @@ function get_token() {
         // https://stackoverflow.com/questions/3148225/jquery-active-function
         // load_status();
         // load();
+    }
   }
-  function token_failed(try_again) {
-      // try again a short while later, because sometimes
-      // the 'input' event arrives before the text does,
-      // apparently (at least in Firefox 40 on Linux,
-      // pasting into the text field).
-    return (!try_again ? undefined : function() {
-        setTimeout(function() {
-          got_input(false);
-        }, 100)
-      });
+  function test_token(token) {
+    test_auth(token, token_worked(token));
   }
-  function got_input(try_again_if_fail) {
+  function got_input() {
     if(done){return;}
-    if(try_again_if_fail !== false){try_again_if_fail = true;}
-    state.auth_token = token_field.value;
-    test_auth(token_worked, token_failed(try_again_if_fail));
+    test_token(token_field.value);
   }
-  // in case no token is required (todo, serve different html in that case instead?):
-  state.auth_token = '';
-  test_auth(token_worked, token_failed(false));
-  state.auth_token = sessionStorage.getItem('hilarious_editor_token') || '';
-  test_auth(token_worked, token_failed(false));
-  token_field.addEventListener('input', got_input);
+  var debounced_got_input = _.debounce(got_input, 50);
+  // Test '' in case no token is required
+  // (TODO, serve different html in that case instead?).
+  test_token('');
+  var saved_token = sessionStorage.getItem('hilarious_editor_token');
+  if(saved_token) {
+    test_token(saved_token);
+  }
+  token_field.addEventListener('input', debounced_got_input);
   $('#ask-for-token').show();
   $('#token').focus();
 }
