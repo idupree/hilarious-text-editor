@@ -1057,6 +1057,7 @@ function get_token() {
   }
   function got_input(try_again_if_fail) {
     if(done){return;}
+    if(try_again_if_fail !== false){try_again_if_fail = true;}
     state.auth_token = token_field.value;
     test_auth(token_worked, token_failed(try_again_if_fail));
   }
