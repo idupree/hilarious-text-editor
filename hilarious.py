@@ -52,7 +52,12 @@ def guess_mimetype(filename):
 static_resources = [
   'hilarious.html', 'hilarious.css', 'hilarious.js',
   'underscore-min.js', 'jquery.min.js',
+  'annyang.modified.js',
+  'bililiteRange.js', 'bililiteRange.util.js',
+  'xregexp-all.js',
   'polyfills.js',
+  'speech_recognition_for_editor.js',
+  'unicode_names_map.json'
   ]
 # load page_html each time so that development is faster:
 # fewer things require restarting the server
@@ -70,7 +75,12 @@ def get_editor_html():
       <script src="/underscore-min.js"></script>
       <script src="/jquery.min.js"></script>
       <script src="/polyfills.js"></script>
+      <script src="/annyang.modified.js"></script>
+      <script src="/bililiteRange.js"></script>
+      <script src="/bililiteRange.util.js"></script>
+      <script src="/xregexp-all.js"></script>
       <script src="/hilarious.js"></script>
+      <script src="/speech_recognition_for_editor.js"></script>
 ''',
     contentses['hilarious.html'])))
 
