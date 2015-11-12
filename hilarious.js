@@ -462,12 +462,14 @@ function editor_keydown(e) {
   if(e.which === page_up_key_num || e.which === page_down_key_num) {
     e.preventDefault();
     e.stopPropagation();
-    var page_height = window.innerHeight;
-    var scroll_magnitude = page_height - 3 * textarea_line_height();
-    var scroll_amount = ((e.which === page_up_key_num)
-                              ? -scroll_magnitude : scroll_magnitude);
-    window.scrollBy(0, scroll_amount);
+    page_updown(e.which === page_down_key_num);
   }
+}
+var page_updown = hilarious.page_updown = function(down) {
+  var page_height = window.innerHeight;
+  var scroll_magnitude = page_height - 3 * textarea_line_height();
+  var scroll_amount = (down ? scroll_magnitude : -scroll_magnitude);
+  window.scrollBy(0, scroll_amount);
 }
 
 // Make (shift)-tabbing to the textarea not delete your cursor position:
