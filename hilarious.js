@@ -1021,15 +1021,13 @@ function load(f) {
 function get_token() {
   var token_field = document.getElementById('token');
   var done = false;
-  function got_input(recur) {
-    if(done){return;}
-    state.auth_token = token_field.value;
-    test_auth(function() {
+  function token_worked() {
         if(done){return;}
         done = true;
         token_field.removeEventListener('input', got_input);
         token_field.value = '';
         $('#ask-for-token').remove();
+        sessionStorage.setItem('hilarious_editor_token', state.auth_token);
         // We now have to load status before loading textarea contents
         // because the status tells us what file to request.
         // (Note if editing this to do them in parallel, see comments below
@@ -1045,18 +1043,28 @@ function get_token() {
         // https://stackoverflow.com/questions/3148225/jquery-active-function
         // load_status();
         // load();
-      },
+  }
+  function token_failed(try_again) {
       // try again a short while later, because sometimes
       // the 'input' event arrives before the text does,
       // apparently (at least in Firefox 40 on Linux,
       // pasting into the text field).
-      (recur ? undefined : function() {
+    return (!try_again ? undefined : function() {
         setTimeout(function() {
-          got_input(true);
-        }, 100);
-    }));
+          got_input(false);
+        }, 100)
+      });
   }
-  got_input(); // in case no token is required (todo, serve different html in that case instead?)
+  function got_input(try_again_if_fail) {
+    if(done){return;}
+    state.auth_token = token_field.value;
+    test_auth(token_worked, token_failed(try_again_if_fail));
+  }
+  // in case no token is required (todo, serve different html in that case instead?):
+  state.auth_token = '';
+  test_auth(token_worked, token_failed(false));
+  state.auth_token = sessionStorage.getItem('hilarious_editor_token') || '';
+  test_auth(token_worked, token_failed(false));
   token_field.addEventListener('input', got_input);
   $('#ask-for-token').show();
   $('#token').focus();
