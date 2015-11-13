@@ -315,6 +315,17 @@ bililiteRange.bounds.BOF = function(){
     bililiteRange(document.activeElement
       ).line(line).bounds('startbounds').select();
   });
+  add_command(XRegExp("^(?:go|move) (down|up)( {number})?(:? lines?)?$", 'i'),
+    function(dir, count) {
+      count = parse_spoken_count(count);
+      var el = document.activeElement;
+      var currentLine = bililiteRange(el).bounds('selection').line();
+      var targetLine = ((dir === 'down') ?
+                          (currentLine + count) :
+                          (currentLine - count));
+                          console.log(targetLine);
+      bililiteRange(el).line(targetLine).select();
+    });
   //var location_desc =
   add_command(/^page ?down$/i, function() {
     hilarious.page_updown(true);
