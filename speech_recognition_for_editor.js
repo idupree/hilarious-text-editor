@@ -129,14 +129,21 @@ function search_for_unicode_characters(searched) {
       // TODO sorted by codepoint maybe??
       // also what about speech recognition multiple results hm.
       var max_to_find = 35;
-      for(var num_found = 0; num_found < max_to_find; num_found++) {
+      // There are some intentional duplicate name keys ("-" replaced with
+      // spaces for example), so skip the duplicated ones. TODO show
+      // the user the *canonical* name (with-dash if duplicates, for example).
+      var found_chars = {};
+      for(var num_found = 0; num_found < max_to_find;) {
         var match = searcher.exec(unicode_names_string);
         if(!match) { break; }
         var name = match[0];
         var character = unicode_names_map[name];
+        if(found_chars[character]) { continue; }
+        found_chars[character] = true;
         var codepoint = character.codePointAt(0);
         // When HTMLing this, use <bdi> around the character, IIRC
         console.log("Possible match: " + character + ' ' + showCodePoint(codepoint) + ' ' + name);
+        num_found++;
       }
       if(num_found === max_to_find) {
         console.log("And more unshown matches...");
