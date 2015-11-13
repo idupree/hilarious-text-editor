@@ -52,6 +52,7 @@ def guess_mimetype(filename):
 static_resources = [
   'hilarious.html', 'hilarious.css', 'hilarious.js',
   'hilarious-dull-algorithms.js',
+  'communicate-with-hilarious-server.js',
   'underscore-min.js', 'jquery.min.js',
   'annyang.modified.js',
   'bililiteRange.js', 'bililiteRange.util.js',
