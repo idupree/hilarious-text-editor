@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-window.hilarious = {};
+if(!window.hilarious) { window.hilarious = {}; }
 
 hilarious.reload_page_as_needed_for_dragon_naturallyspeaking = (window.annyang == null);
 hilarious.attempt_to_auto_indent_when_user_enters_a_newline = true;
@@ -28,7 +28,7 @@ function escape_for_js_regexp(str) {
 var editor = hilarious.editor = null;
 var save_status = document.getElementById('save-status');
 
-var state = {
+var state = hilarious.state = {
   auth_token: '',
 
   current_file: null,
@@ -561,40 +561,10 @@ function wrappable_file_name_html(f) {
   return _.escape(f).replace(/(?:[-_\\\/]|(?=\..{6}))/g, '$&<wbr>');
 }
 
-// A "set" here is an object with every key/value pair having
-// the 'value' be 'true'. Underscore.js's set operations on arrays
-// have poor asymptotic speed.
-function to_set(enumerable) {
-  var result = {};
-  _.each(enumerable, function(member) {
-    if(!_.isString(member) && !_.isNumber(member)) {
-      throw("Bad type in conversion to set." +
-               (_.isBoolean(member) ? " Is it already a set?" : ""));
-    }
-    result[member] = true;
-  });
-  return result;
-}
-function set_difference(minuend, subtrahend) {
-  var result = {};
-  _.each(minuend, function(member) {
-    if(!subtrahend[member]) {
-      result[member] = true;
-    }
-  });
-  return result;
-}
-function set_sorted(set) {
-  return _.sortBy(_.keys(set));
-}
-function set_size(set) {
-  return _.size(set);
-}
-
 function display_editable_files() {
   var $editable_files = $('#editable_files');
   $editable_files.empty();
-  _.each(set_sorted(state.editable_files), function(f) {
+  _.each(hilarious.algo.set_sorted(state.editable_files), function(f) {
     var $a = $('<a/>').attr({
         'href': '#'+f,
         'data-filename': f
@@ -650,26 +620,6 @@ function display_choices(choice_ids, choice_htmls) {
   });
 }
 
-// inspirations from http://stackoverflow.com/q/1916218
-// TODO I really only want to get the portion of common
-// prefix that consists of complete grapheme clusters
-// (see e.g. https://github.com/devongovett/grapheme-breaker )
-// - is that worth implementing?
-function common_prefix(strings) {
-  if(strings.length === 0) {
-    return '';
-  }
-  var highest = _.reduce(strings, function(a, b) { return a > b ? a : b; });
-  var lowest  = _.reduce(strings, function(a, b) { return a > b ? b : a; });
-  var max_len = Math.min(highest.length, lowest.length);
-  var i = 0;
-  while(i < max_len && lowest.charAt(i) === highest.charAt(i)) {
-    i += 1;
-  }
-  return lowest.substring(0, i);
-}
-
-
 var $search_input = $('#search_input');
 function search_input(e) {
   var searched = $search_input.val();
@@ -684,7 +634,7 @@ function search_input(e) {
       return s.test(f);
     });
   });
-  var found_common_prefix = common_prefix(found);
+  var found_common_prefix = hilarious.algo.common_prefix(found);
   var found_common_prefix_len = found_common_prefix.length;
   var show_found = _.map(found, function(f) {
     return f.substring(found_common_prefix_len);
@@ -870,7 +820,7 @@ function load_status(is_initial_load) {
       state.default_file_name = data.default_file_name;
       display_context_name();
       var all_old_files = state.editable_files;
-      var all_new_files = to_set(data.editable_files);
+      var all_new_files = hilarious.algo.to_set(data.editable_files);
       if(!_.isEqual(all_old_files, all_new_files)) {
         state.editable_files = all_new_files;
         display_editable_files();
