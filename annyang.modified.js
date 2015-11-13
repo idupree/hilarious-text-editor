@@ -154,7 +154,7 @@
 
       recognition.onerror   = function(event) {
         if (debugState) {
-          root.console.log('Recognition error:', event.error);
+          root.console.log('Recognition error:', event.error, event.message);
         }
         invokeCallbacks(callbacks.error);
         switch (event.error) {
