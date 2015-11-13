@@ -59,30 +59,6 @@ static_resources = [
   'speech_recognition_for_editor.js',
   'unicode_names_map.json'
   ]
-# load page_html each time so that development is faster:
-# fewer things require restarting the server
-def get_editor_html():
-  contentses = {}
-  for filename in static_resources:
-    with open(get_filename_relative_to_this_script(filename), 'rt', encoding='utf-8') as f:
-      contentses[filename] = f.read()
-
-  # hmm, suboptimal line numbers for debugging
-  return (
-    re.sub(r'HILARIOUS_EDITOR_CSS',
-      lambda _: '<link rel="stylesheet" href="/hilarious.css" />',
-    re.sub(r'HILARIOUS_EDITOR_JAVASCRIPT', '''
-      <script src="/underscore-min.js"></script>
-      <script src="/jquery.min.js"></script>
-      <script src="/polyfills.js"></script>
-      <script src="/annyang.modified.js"></script>
-      <script src="/bililiteRange.js"></script>
-      <script src="/bililiteRange.util.js"></script>
-      <script src="/xregexp-all.js"></script>
-      <script src="/hilarious.js"></script>
-      <script src="/speech_recognition_for_editor.js"></script>
-''',
-    contentses['hilarious.html'])))
 
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
   pass
@@ -222,12 +198,11 @@ def request_handler(server_origin,
       self.wfile.write(b'User-agent: *\nDisallow: /\n')
   
     def editor(self):
-      self.send_response(200)
-      self.send_header('Content-Type', 'text/html; charset=utf-8')
-      self.boilerplate_headers()
-      self.end_headers()
-      self.wfile.write(get_editor_html().encode('utf-8'))
+      self.static_resource('hilarious.html')
 
+    # load resources from the filesystem each time
+    # so that development is faster:
+    # fewer things require restarting the server
     def static_resource(self, filename):
       if not filename in static_resources:
         self.my_error(403)
