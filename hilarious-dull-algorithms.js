@@ -54,4 +54,21 @@ hilarious.algo.common_prefix = function(strings) {
   return lowest.substring(0, i);
 }
 
+// Used if you want an object to keep its identity
+// but lose all its own keys.
+// Mutates obj, and returns it for any chaining purposes.
+hilarious.algo.clear_object = function(obj) {
+  // Deleting array keys doesn't adjust length,
+  // so clear array parts of objects first:
+  if(_.isArray(obj)) {
+    while(obj.length > 0) {
+      obj.pop();
+    }
+  }
+  _.each(_.keys(obj), function(k) {
+    delete obj[k];
+  });
+  return obj;
+};
+
 }());

@@ -780,7 +780,8 @@ var stateJSON = sessionStorage.getItem('hilarious_editor_state');
 if(stateJSON != null) {
   console.log("restoring from special reload");
   sessionStorage.removeItem('hilarious_editor_state');
-  state = hilarious.state = JSON.parse(stateJSON);
+  hilarious.algo.clear_object(state);
+  _.extendOwn(state, JSON.parse(stateJSON));
   if(state.textarea_value != null) {
     set_textarea_contents(state.textarea_value);
     //delete state.textarea_value;
