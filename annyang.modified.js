@@ -153,6 +153,9 @@
       recognition.onstart   = function()      { invokeCallbacks(callbacks.start); };
 
       recognition.onerror   = function(event) {
+        if (debugState) {
+          root.console.log('Recognition error:', event.error);
+        }
         invokeCallbacks(callbacks.error);
         switch (event.error) {
         case 'network':
