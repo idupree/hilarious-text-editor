@@ -130,7 +130,22 @@
 
       // In HTTPS, turn off continuous mode for faster results.
       // In HTTP,  turn on  continuous mode for much slower results, but no repeating security notices
-      recognition.continuous = root.location.protocol === 'http:';
+      // There doesn't seem to be a DOM API to find out whether the browser
+      // considers the current origin a secure origin, so: reimplementing
+      // the current list:
+      // https://www.chromium.org/Home/chromium-security/security-faq#TOC-Which-origins-are-secure-
+      // https://www.chromium.org/Home/chromium-security/prefer-secure-origins-for-powerful-new-features
+      var origin_is_secure = (
+        root.location.protocol === 'https:' ||
+        root.location.protocol === 'wss:' ||
+        root.location.protocol === 'file:' ||
+        root.location.protocol === 'chrome-extension:' ||
+
+        root.location.hostname === 'localhost' ||
+        /^127\.[0-9]+\.[0-9]+\.[0-9]+$/.test(root.location.hostname) ||
+        root.location.hostname === '[::1]'
+        );
+      recognition.continuous = !origin_is_secure;
 
       // Sets the language to the default 'en-US'. This can be changed with annyang.setLanguage()
       recognition.lang = 'en-US';
