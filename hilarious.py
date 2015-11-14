@@ -50,18 +50,22 @@ def guess_mimetype(filename):
 
 
 static_resources = [
-  'hilarious.html', 'hilarious.css', 'hilarious.js',
-  'hilarious-dull-algorithms.js',
-  'saving.js',
-  'communicate-with-hilarious-server.js',
-  'communicate-with-chrome-filesystem.js',
-  'underscore-min.js', 'jquery.min.js',
-  'annyang.modified.js',
-  'bililiteRange.js', 'bililiteRange.util.js',
-  'xregexp-all.js',
-  'polyfills.js',
-  'speech_recognition_for_editor.js',
-  'unicode_names_map.json'
+  'html/hilarious.html',
+  'css/hilarious.css',
+  'js/hilarious.js',
+  'js/hilarious-dull-algorithms.js',
+  'js/saving.js',
+  'js/communicate-with-hilarious-server.js',
+  'js/communicate-with-chrome-filesystem.js',
+  'js/polyfills.js',
+  'js/speech_recognition_for_editor.js',
+  'vendor/underscore-min.js',
+  'vendor/jquery.min.js',
+  'modified_vendor/annyang.modified.js',
+  'modified_vendor/bililiteRange.js',
+  'vendor/bililiteRange.util.js',
+  'vendor/xregexp-all.js',
+  'generated/unicode_names_map.json'
   ]
 
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -202,7 +206,7 @@ def request_handler(server_origin,
       self.wfile.write(b'User-agent: *\nDisallow: /\n')
   
     def editor(self):
-      self.static_resource('hilarious.html')
+      self.static_resource('html/hilarious.html')
 
     # load resources from the filesystem each time
     # so that development is faster:

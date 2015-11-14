@@ -5,12 +5,12 @@
   "version": "2",
   "minimum_chrome_version": "31",
   "icons": {
-    "16": "favicon16x16.png",
-    "32": "favicon32x32.png"
+    "16": "media/favicon16x16.png",
+    "32": "media/favicon32x32.png"
   },
   "app": {
     "background": {
-      "scripts": ["chrome-app-main.js"]
+      "scripts": ["js/chrome-app-main.js"]
     }
   },
   "optional_permissions": [

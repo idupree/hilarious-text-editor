@@ -62,7 +62,7 @@ $.ajax({
   method: 'GET',
   cache: true,
   dataType: 'json',
-  url: 'unicode_names_map.json',
+  url: '/generated/unicode_names_map.json',
 }).done(function(data) {
   unicode_names_map = data;
   // TODO is this too slow for the main thread?

@@ -1,5 +1,5 @@
 chrome.app.runtime.onLaunched.addListener(function() {
-  chrome.app.window.create('hilarious.html', {
+  chrome.app.window.create('/html/hilarious.html', {
     id: 'HilariousTextEditorID',
     bounds: {
       width: 800,
