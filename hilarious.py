@@ -58,7 +58,7 @@ static_resources = [
   'js/communicate-with-hilarious-server.js',
   'js/communicate-with-chrome-filesystem.js',
   'js/polyfills.js',
-  'js/speech_recognition_for_editor.js',
+  'js/speech-recognition-for-editor.js',
   'vendor/underscore-min.js',
   'vendor/jquery.min.js',
   'modified_vendor/annyang.modified.js',
