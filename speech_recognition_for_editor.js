@@ -491,6 +491,13 @@ bililiteRange.bounds.BOF = function(){
     ' \n': function() {console.log("newline3");},
     ' ↵': function() {console.log("newline4");}*/
 //  };
+
+// open, load,
+  if(hilarious.use_chrome_filesystem) {
+    add_command(/^edit (?:(?:a|an|another) )?directory$/i, function(){
+      hilarious.askUserToOpenEditableDirectory(false);
+    });
+  }
   //annyang.addCommands(commands);
   annyang.setLanguage('en-US');
   annyang.addCallback('result', function(texts) {

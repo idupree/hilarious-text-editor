@@ -1,6 +1,9 @@
 (function(){
 "use strict";
 
+// Chrome says "beforeunload is not available in packaged apps."
+// Our use of beforeunload isn't critical.
+hilarious.can_use_beforeunload = (location.protocol !== 'chrome-extension:');
 
 // implemented in communicate-with-*.js
 hilarious.loadsave_ops = {
@@ -62,7 +65,9 @@ function unsaved_beforeunload(e) {
 function we_will_need_to_save() {
   if(!state.saving.trying_to_save) {
     state.saving.trying_to_save = true;
-    window.addEventListener('beforeunload', unsaved_beforeunload);
+    if(hilarious.can_use_beforeunload) {
+      window.addEventListener('beforeunload', unsaved_beforeunload);
+    }
   }
 }
 function starting_saving() {
@@ -76,7 +81,9 @@ function all_done_saving() {
   if(state.saving.save_interval !== null) {
     clearInterval(state.saving.save_interval);
   }
-  window.removeEventListener('beforeunload', unsaved_beforeunload);
+  if(hilarious.can_use_beforeunload) {
+    window.removeEventListener('beforeunload', unsaved_beforeunload);
+  }
   state.saving.save_req = null;
   $(save_status).empty();
 }
@@ -129,19 +136,28 @@ function editor_input() {
 
 $('#textarea_container').on('input', 'textarea', editor_input);
 
+hilarious.status_loaded = function(data) {
+  if(_.has(data, 'context_name')) {
+    state.context_name = data.context_name;
+  }
+  if(_.has(data, 'default_file_name')) {
+    state.default_file_name = data.default_file_name;
+  }
+  if(_.has(data, 'editable_files')) {
+    hilarious.display_context_name();
+    var all_old_files = state.editable_files;
+    var all_new_files = hilarious.algo.to_set(data.editable_files);
+    if(!_.isEqual(all_old_files, all_new_files)) {
+      state.editable_files = all_new_files;
+      hilarious.display_editable_files();
+    }
+  }
+};
+
 var load_status = hilarious.load_status = function(success, failure) {
   return hilarious.loadsave_ops.load_status(
     function(data) {
-      console.log(data);
-      state.context_name = data.context_name;
-      state.default_file_name = data.default_file_name;
-      hilarious.display_context_name();
-      var all_old_files = state.editable_files;
-      var all_new_files = hilarious.algo.to_set(data.editable_files);
-      if(!_.isEqual(all_old_files, all_new_files)) {
-        state.editable_files = all_new_files;
-        hilarious.display_editable_files();
-      }
+      hilarious.status_loaded(data);
       if(success) {success();}
     },
     failure
@@ -206,7 +222,9 @@ hilarious.abort_saving_for_impending_special_lossless_reload = function() {
     clearInterval(state.saving.save_interval);
     state.saving.save_interval = null;
   }
-  window.removeEventListener('beforeunload', unsaved_beforeunload);
+  if(hilarious.can_use_beforeunload) {
+    window.removeEventListener('beforeunload', unsaved_beforeunload);
+  }
 };
 
 // wait till DOM Load to make sure the saving-ops-implementing scripts

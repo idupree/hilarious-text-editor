@@ -54,6 +54,7 @@ static_resources = [
   'hilarious-dull-algorithms.js',
   'saving.js',
   'communicate-with-hilarious-server.js',
+  'communicate-with-chrome-filesystem.js',
   'underscore-min.js', 'jquery.min.js',
   'annyang.modified.js',
   'bililiteRange.js', 'bililiteRange.util.js',
