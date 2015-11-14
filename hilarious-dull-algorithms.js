@@ -8,15 +8,22 @@ hilarious.algo = {}
 // A "set" here is an object with every key/value pair having
 // the 'value' be 'true'. Underscore.js's set operations on arrays
 // have poor asymptotic speed.
-hilarious.algo.to_set = function(enumerable) {
+hilarious.algo.to_set = function(arrayOrObject) {
   var result = {};
-  _.each(enumerable, function(member) {
-    if(!_.isString(member) && !_.isNumber(member)) {
-      throw("Bad type in conversion to set." +
-               (_.isBoolean(member) ? " Is it already a set?" : ""));
-    }
-    result[member] = true;
-  });
+  if(_.isArray(arrayOrObject) || _.isArguments(arrayOrObject)) {
+    _.each(arrayOrObject, function(member) {
+      if(!_.isString(member) && !_.isNumber(member)) {
+        throw("Bad type in conversion to set.");
+      }
+      result[member] = true;
+    });
+  } else if(_.isObject(arrayOrObject)) {
+    _.each(arrayOrObject, function(val, key) {
+      result[key] = true;
+    });
+  } else {
+    throw("Don't know how to convert this to a set");
+  }
   return result;
 }
 hilarious.algo.set_difference = function(minuend, subtrahend) {
