@@ -13,6 +13,9 @@ bililiteRange.fn.expandToInclude = function(otherRange) {
     ]);
 };
 
+// Forestall any latent astral-plane Unicode bugs:
+XRegExp.install({astral: true});
+
 // For commands that are often heard as ambiguous enough
 // that it helps to capture homophones, we check some of those.
 XRegExp.addToken(
