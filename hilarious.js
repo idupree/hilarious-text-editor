@@ -14,6 +14,9 @@ function reload_soon_for_dragon_naturallyspeaking() {
   }
 }
 
+var dragon_still_waiting_before_changing_search_rows = (
+  hilarious.reload_page_as_needed_for_dragon_naturallyspeaking);
+
 function escape_for_css_selector_attr_value(str) {
   // see http://www.w3.org/TR/CSS21/syndata.html#strings
   return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
@@ -436,6 +439,9 @@ hilarious.display_editable_files = function() {
     }
     $editable_files.append($a);
   });
+  if(!dragon_still_waiting_before_changing_search_rows) {
+    search_input();
+  }
 };
 
 // Arbitrarily use NATO phonetic alphabet.
@@ -513,11 +519,19 @@ $search_input.on('input', search_input);
 // Dragon to see the links with just the base text in them, and
 // to see as many as fit on the page with each taking up only a
 // single line (long values can make them take up multiple lines).
-$(function() {
-  setTimeout(function() {
-    search_input();
-  }, 1500);
-});
+if(hilarious.reload_page_as_needed_for_dragon_naturallyspeaking) {
+  $(function() {
+    setTimeout(function() {
+      dragon_still_waiting_before_changing_search_rows = false;
+      search_input();
+    }, 1500);
+  });
+} else {
+  // initialize if needed (though the more useful initialization will come
+  // when hilarious.display_edited_files calls search_input after the
+  // status is loaded.)
+  search_input();
+}
 
 
 var $go_to_line_input = $('#go_to_line_input');
