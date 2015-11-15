@@ -318,6 +318,196 @@ bililiteRange.bounds.BOF = function(){
     bililiteRange(document.activeElement
       ).line(line).bounds('startbounds').select();
   });
+
+/*
+  // <words> optional wrapper "the phrase <words>"
+  // the next three identifiers?
+  // select through the next <words>
+  // select [through] [the next] <words>
+  // move past the
+  // go forward _ _
+  // insert after __ (go(to)|move(to) after)   (after|before|past)--past is whatever direction the phrase says
+  // insert before __
+  // copy __
+  // Ah! have the previous affected area have a background
+  // (if there is no actual selection)
+  // "that"
+  // "this"
+  // "the selection"
+  // next/last/previous/current
+  // delete the word (Dragon) === delete the current word, so.
+  // delete the (current)? (word|line)[s]?
+  // "dictate that"
+  // "no command that"
+  // "no cap that" / "decapitalize that" / "camelcase that" /
+  // "that's not a command"
+  // literal? verbatim?
+  // matching parenthesis/es  enclosing
+
+  // s/number/count? yeah
+  // n--- explicit capture--- using it here--
+  // precede any with "through" to mean merge current selection with that
+  // or "after" or "before" to mean the begin/end of it,
+  // or "past" to mean the far side from the current selection if that makes sense? it may not.
+  //   the opposite: "proximally to". lol.
+  // for "line N", is that the whole line, or begin/end/whatever, how do I disambiguate?
+  // maybe "select/delete" vs "go/move to"?
+  // "row" because the speech recognizer doesn't understand me saying "line" often
+    // Find a way to present the position syntax to a user.
+  var cursorRelatedCommand = "{action} {position}"
+  var actions =
+    side = "(before|after|(at )?the beginning of|(at )?the end of)"
+    "(go|move) ?to( (?<moveToSide>{side}))?"
+    "insert (?<moveToSide2>{side})"
+    // 
+    // Is "search for" a reasonable synonym for searchy uses of "select"?
+    // "search next" "search previous"?
+    // "cut" - dangerousish - hey I can implement a within-app clipboard stack.
+    // For data sources, "clipboard item 12", so:
+    // "paste clipboard item 12"
+    // "copy clipboard item 12"
+    // delete; cut; not sure about select or go to... I guess there's no reason not to go edit them?? lol
+    // also how are they numbered when a system action changes the clipboard; does that move things?
+    // is it a ring buffer, or an annoying oft-renumbering queue, or?
+    // I suppose if a ring buffer, *numbering* sounds confusing but I could
+    // make it lettered "clipboard item A/Alpha", etc.
+    // Maybe also "clipboard item containing ____searchterm____"? (which could have even more hidden history
+    // if I want, though I probably don't want)
+    // maybe "clipboard A" because "clipboard item" is silly long
+    // so:
+    // ring buffer; "paste clipboard J"; current position of ring-buffer
+    // which is the default one to be pasted is brightly hilighted? hm.
+    // Or is brought to the top and the letters are moved around.
+    // Hm both of those are also potential to confuse.
+    // Oh this reminds me of Eli wanting quick commands that *don't* randomly go away,
+    // like decltype (and maybe commands? like "search for decltype" if necessary?
+    // That could also be a part of the "you can edit/do your previous command" system~~~
+    // So:
+    // some board items are "pinned" because you pinned them
+    // there are some slots for recent commands, some for recent clipboards,
+    // you can maybe scroll each of those back somewhat more if you want (maybe).
+    // LRU? frecency?
+    // they get one line with ellipsis; when you're editing one, it gets a few more lines if needed (3?)
+    // they are saved persistently (er, what about passwords??? hm.)
+    // and maybe can be saved for different "profiles"/dirs/files/file extensions???
+    // you can name them whatever you want rather than a/b/c
+    // you can have extras there isn't room for on the screen
+    // "macro"/"alias"/"custom command"(though just a literal string not
+    // regex... unless I *let* you name them regexes or even use eval'ed
+    // js... though that is RISKY because people might share their
+    // macros and they could hack people's computers)
+    // "(pin|clipboard|command) (A|B|C..)"
+    // "rename clipboard A"
+    // "rename pin C"
+    // "rename pin smorgasbord"
+    // er.. maybe they should all always have a letter name too,
+    // in case you name them something you can't say again.
+    // possiblies "keyword declare type" "keyword declare val"
+    // name format regex or plain (can it auto switch? hm. it's not like you can actually use
+    // many of the regex symbols by speaking very easily, so: probably!)
+    // Name as well as regex, or? What about js function matching (nevermind)?
+    // What about creating your own regex shortcuts (eh).
+    // <input type="text" name="cardname1" value="clipboard A">
+    // <textarea id="cardcontents1">dictate
+    // "You"+"Are"="Great"
+    // is probably not much of an equation.</textarea>
+    //
+    // show/edit builtin commands as cards
+    // hide them, maybe, if you want, but always be able to access with "hilarious builtin command _____"
+    // For the cards, how to differentiate ones that are literal text to paste, vs commands?
+    // Should "clipboard" ones be marked specially? Tweaked to start with "dictate" if they would
+    // be a command? Should they all be plain old text by default and uh.... be a command if
+    // they start with "command" (that doesn't really make sense)..?
+    // Also watch out for pasting something into one of them: make sure that isn't a
+    // hacking vector if the paste buffer has something weird in it.
+    // Maybe CSS it up so that if the card contents start with "dictate " then that part of their contents
+    // is a different background-color.  This might look odd for multi line cards in expanded form..
+    // maybe then show it as "dictate\n"? (and make sure the "dictate" command accepts that alternate
+    // space character after it). Or instead shrink the "dictate" to a similarly-colored triangle in
+    // the top left corner of the area, that takes up no space (e.g. position:absolute, and possibly
+    // even not-clickable), if it's okay that it can't be edited away?? probably not ok. but probably
+    // is ok for multi line dictate to canonically use "dictate\n".
+    //
+    // Ability to export your set of cards to a well formatted Javascript file
+    // that can be included in the editor, even upstream, if everyone desires.
+    "(?<selectionRelatedAction>select|delete|copy|cut)( through(?<selectThroughSide>( {side})?))?"
+    // camel case (position, e.g. "that")
+    // cap camel case
+    // snake case
+    // cap snake case
+    // all cap snake case
+    // cap the character
+    // no cap the character
+    // cap the previous T
+    // cap the previous HTTP
+    // [presumably, searches should be insensitive to capitalization and
+    // words being separated by (_|-| |) at least]
+    // that | the previous (identifier | phrase | utterance)
+  var positions =
+    // first/second/third/....fifty-second/....?
+    number = "((-|−|negative|minus|dash|hyphen)? ?[0-9]+|a|one|two|to|too|three|for|four|infinit[yei]|every|all)"
+    through = "(-|to|two|too|2|through|thru)"
+    dollars = "((\$|dollars?) ?(sign)?)"
+    // vim "help *" calls identifiers "keywords"
+    unit = "(letters?|characters?|identifiers?|keywords?|tokens?|symbols?|words?|lines?|rows?)"
+    // TODO make the user of paren be able to disambiguate which nearest parenthesis was meant
+    // by which word was used
+    paren = "(parenthesis|parentheses|brackets?|braces?|quotes?|quotation( mark)?s?)"
+    //"(?<relativeUpDownDirection>down|up)(?<relativeUpDown> {number})?(:? lines?)?"
+    //"lines? (?:from )?({number}|begins?|starts?) {through} ({number}|end|(?:(?:\$|dollars?) ?(?:sign)?))"
+    // zero-width referent only:
+    // (hmm does it want us to try to match the current selection indentedness, or go to begin?end?)
+    "(?<upDownDirection>down|up)(?<relativeUpDown> {number})?( (lines?|rows?))?"
+    // may include selections with positive sizes:
+    "(row |line |9:)?(?<lineNumber>{number})"
+    // almost definitely a positive size:
+    "(lines?|rows?) (from )?(?<fromLine>{number}|begins?|starts?) {through} (?<toLine>{number}|end|{dollars})"
+    "(?<selection>(the )?selection|this)"
+    "(?<recentarea>that)"
+    // "the [current] character" doesn't make a lot of sense
+    // but i guess it's alright
+    // also "delete the three letters"... does that fail if
+    // there are a different number of them selected? or what?
+    // maybe you can only use numbers for forward/back.
+    // how about "the words here"
+    "the (current |present )?(?<unitHere>{unit})( here)?"
+    "the (?<forwardBackDirection>next|last|previous|prior)(" +
+      "(?<relativeMovementAmount> {number})? (?<relativeMovementUnit>{unit})|" +
+      // this / the selected ___? / the selection?? / copy of line 13???
+      // that's: a little too obscure a use to go to much effort for,
+      // unless someone wants it.
+      // All this should be omittable if the user just did a search,
+      // in order to repeat the same settings, though I'm not sure
+      // whether that should be a sub-case of this or a separately
+      // listed syntax. (And, the state should be shown in a corner.)
+      //
+      // What about "whole word" vs. not, ignorecase, settings? (If ignoring those
+      // settings, then the selection will then make even a 'characters' unit work..)
+      //
+      // with "select the next", I'm worried about that accidentally being done
+      // by users whose last word got swallowed ("select the next word") so limiting
+      // that a bit by (?= .), hm.
+      "(?= .)( (one|1|copy))?( of ((this|the selection)|(this|the selected) (?<searchForTheSelectedUnit>{unit})))?|" + // unit defaults to identifier? vim "*"/"#".
+      " ((literal|verbatim|dictate|search|find) )?(?<words>.*))"
+    // vim "*"?
+    // Note that matching paren ideally pays some attention to tokens.
+    // Parens in quotes or comments, and/or backslashed (watch out
+    // for backslashed quotes too), might be different.  For now
+    // don't tokenise for parens.  For matching quote, how does
+    // it know which? I could change to "the previous quote"/"the
+    // previous unbackslashed quote"; also what about ''' like python
+    // Matching comment - eh.
+    "the matching {paren}" // vim "%"
+    // the third enclosing paren? hmm. enclosing|outer?
+    "the enclosing {paren}"
+    // the indentation of [selector]? or is that too hard.
+    // "go to after the indentation of line 47"
+    "the indentation"
+    // the other part of the line might be called "the content"
+    // but that name isn't as clear and I also don't know why you want
+    // to select it (copying, maybe -- in which case you don't want
+    // the trailing whitespace either)
+*/
   add_command(XRegExp("^(?:go|move) (down|up)( {number})?(:? lines?)?$", 'i'),
     function(dir, count) {
       count = parse_spoken_count(count);
