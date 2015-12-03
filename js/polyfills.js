@@ -102,4 +102,7 @@ if(window.console === undefined) {
       }
     };
   }
+  if(console.info === undefined) { console.info = console.log; }
+  if(console.warn === undefined) { console.warn = console.log; }
+  if(console.error === undefined) { console.error = console.log; }
 }
