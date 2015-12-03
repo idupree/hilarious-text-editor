@@ -7,6 +7,93 @@ hilarious.use_chrome_filesystem = (window.chrome && chrome.fileSystem);
 // TODO: decide what to do if one thing here is a subdir of another.
 var openDirectories = {};
 
+
+// Chrome Apps let you retain file/directory entries when you reload the
+// app, if you request the right permissions. However you need to store
+// special strings to let you restore the entries.  To store strings,
+// Chrome Apps don't support localStorage in favor of IndexedDB,
+// so this code uses IndexedDB.
+
+// This indexedDB error handling is mostly console.log here because errors
+// for a small amount of data, inside a Chrome app, seem pretty
+// unlikely and code can be expanded if anyone ever hits those
+// errors (which would mean the error handling code could be tested).
+var retainedOpenFilesDb = null;
+var migrations = [
+  function(db, event) {
+    db.createObjectStore("retainedId", {keyPath: "retainedId"});
+  }
+];
+function closeOnUpgradeRequest(event) {
+  console.log("closing RetainedOpenFiles db for upgrade");
+  retainedOpenFilesDb.close();
+  retainedOpenFilesDb = null;
+}
+function openRetainedOpenFilesDb() {
+  var request = window.indexedDB.open("RetainedOpenFiles", migrations.length);
+  request.onblocked = function(event) {
+    console.log("RetainedOpenFiles upgrade blocked; you may have to close other windows/tabs of this app to make it work, if it doesn't work soon all by itself?");
+  };
+  request.onerror = function(event) {
+    console.log("RetainedOpenFiles opening error", event);
+  };
+  request.onupgradeneeded = function(event) {
+    var db = event.target.result;
+    for(var i = event.oldVersion; i < event.newVersion; ++i) {
+      migrations[i](db, event);
+    }
+    db.onversionchange = closeOnUpgradeRequest;
+  };
+  request.onsuccess = function(event) {
+    var db = event.target.result;
+    db.onversionchange = closeOnUpgradeRequest;
+    retainedOpenFilesDb = db;
+    restoreFromRetainedOpenFiles();
+  };
+}
+function saveRetainedId(retainedId) {
+  if(retainedOpenFilesDb) {
+    var retainedIdStore = retainedOpenFilesDb.transaction("retainedId",
+      'readwrite').objectStore("retainedId");
+    retainedIdStore.put({"retainedId": retainedId});
+  }
+}
+function deleteRetainedId(retainedId) {
+  if(retainedOpenFilesDb) {
+    var retainedIdStore = retainedOpenFilesDb.transaction("retainedId",
+      'readwrite').objectStore("retainedId");
+    retainedIdStore.delete(retainedId);
+  }
+}
+function saveEntryToRetainedOpenFiles(entry) {
+  saveRetainedId(chrome.fileSystem.retainEntry(entry));
+}
+function restoreFromRetainedOpenFiles() {
+  if(retainedOpenFilesDb) {
+    var retainedIdStore = retainedOpenFilesDb.transaction("retainedId").objectStore("retainedId");
+    retainedIdStore.openCursor().onsuccess = function(event) {
+      var cursor = event.target.result;
+      if(cursor) {
+        var retainedId = cursor.value.retainedId;
+        chrome.fileSystem.isRestorable(retainedId, function(isRestorable) {
+          if(isRestorable) {
+            chrome.fileSystem.restoreEntry(retainedId, function(entry) {
+              scanDirectoryTree(entry);
+            });
+          } else {
+            console.log("no longer in chrome filesystem's usable retained ids; forgetting: "+retainedId);
+            deleteRetainedId(retainedId);
+          }
+        });
+        cursor.continue();
+      }
+    };
+  }
+}
+
+// End IndexedDB code
+
+
 function loadFileEntryUTF8(fileEntry, doneCallback, errorCallback) {
   if(!doneCallback) {doneCallback = _.noop;}
   if(!errorCallback) {errorCallback = _.noop;}
@@ -199,7 +286,7 @@ function testEditable(entry, path, isEditable, notEditable) {
     isEditable();
   }
 }
-function scanDirectoryTree(dirEntry, doneCallback, errorCallback) {
+function scanDirectoryTreeImpl(dirEntry, doneCallback, errorCallback) {
   var editableFilesHere = {};
   chrome.fileSystem.getDisplayPath(dirEntry, function(dirPath) {
     openDirectories[dirPath] = dirEntry;
@@ -225,7 +312,7 @@ function rescan(doneCallback, errorCallback) {
   subrequests(
     dirEntries,
     function(dirEntry, subDoneCallback, subErrorCallback) {
-      scanDirectoryTree(dirEntry, function(editableFilesHere) {
+      scanDirectoryTreeImpl(dirEntry, function(editableFilesHere) {
         _.assign(editableFiles, editableFilesHere);
         subDoneCallback();
       }, subErrorCallback);
@@ -235,18 +322,22 @@ function rescan(doneCallback, errorCallback) {
   );
 }
 
+function scanDirectoryTree(dirEntry) {
+  console.log('opening dirEntry', dirEntry);
+  scanDirectoryTreeImpl(dirEntry, function(editableFilesHere) {
+    console.log('editable files here:', editableFilesHere);
+    saveEntryToRetainedOpenFiles(dirEntry);
+    hilarious.status_loaded({
+      editable_files: _.assign(editableFilesHere, hilarious.state.editable_files)
+    });
+  }, function() {
+    console.log("some file system error in the process of scanning dir");
+  });
+}
 
 hilarious.askUserToOpenEditableDirectory = function() {
   chrome.fileSystem.chooseEntry({type: 'openDirectory'}, function(dirEntry) {
-    console.log('ds');
-    scanDirectoryTree(dirEntry, function(editableFilesHere) {
-      console.log('eh', editableFilesHere);
-      hilarious.status_loaded({
-        editable_files: _.assign(editableFilesHere, hilarious.state.editable_files)
-      });
-    }, function() {
-      console.log("some file system error in the process of scanning dir");
-    });
+    scanDirectoryTree(dirEntry);
   });
 };
 var ops = {
@@ -280,6 +371,7 @@ var ops = {
 };
 if(hilarious.use_chrome_filesystem) {
   hilarious.loadsave_ops = ops;
+  openRetainedOpenFilesDb();
 }
 
 
