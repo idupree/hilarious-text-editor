@@ -141,6 +141,9 @@ body {
 #notes {
   padding: 2.5em 0.5em 0;
 }
+#linenos:empty, #textarea_container:empty {
+  display: none;
+}
 .textarea_with_linenos {
   display: inline-block;
   display: inline-flex;
