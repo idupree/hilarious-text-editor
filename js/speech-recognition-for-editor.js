@@ -72,6 +72,13 @@ $.ajax({
   });
 });
 
+//function elementToApplyEditingCommandsTo() {
+//var artificiallyEditedElement = null; // for tests. er, wait, this'll change the active element possibly; hm
+var editedElement = function() {
+  //return artificiallyEditedElement || document.activeElement;
+  return document.activeElement;
+};
+
 // For recognizing the user saying "U+03C1",
 // the recognizer isn't very good at it.
 // I could match "you plus" and then a pause and then
@@ -90,7 +97,7 @@ $.ajax({
 var num_tab_spaces = 2;
 var tab_spaces = ' '.repeat(num_tab_spaces);
 function artificially_type(text) {
-  var selection = bililiteRange(document.activeElement).bounds('selection');
+  var selection = bililiteRange(editedElement()).bounds('selection');
   if(text == '\n') {
     selection.insertEOL().select();
   } else {
@@ -315,8 +322,7 @@ bililiteRange.bounds.BOF = function(){
   // TODO these should probably use 'hilarious.editor' instead of 'activeElement',
   // at least if the current element is not a textarea?
   add_command(/^(?:go|move) ?to (?:line |9:)?([0-9]+)$/i, function(line) {
-    bililiteRange(document.activeElement
-      ).line(line).bounds('startbounds').select();
+    bililiteRange(editedElement()).line(line).bounds('startbounds').select();
   });
 
 /*
@@ -511,7 +517,7 @@ bililiteRange.bounds.BOF = function(){
   add_command(XRegExp("^(?:go|move) (down|up)( {number})?(:? lines?)?$", 'i'),
     function(dir, count) {
       count = parse_spoken_count(count);
-      var el = document.activeElement;
+      var el = editedElement();
       var currentLine = bililiteRange(el).bounds('selection').line();
       var targetLine = ((dir === 'down') ?
                           (currentLine + count) :
@@ -533,11 +539,11 @@ bililiteRange.bounds.BOF = function(){
       }
       var end;
       if(/^(?:end|\$|dollar)/.test(endline)) {
-        end = bililiteRange(document.activeElement).bounds('all').bounds('endbounds');
+        end = bililiteRange(editedElement()).bounds('all').bounds('endbounds');
       } else {
-        end = bililiteRange(document.activeElement).line(endline).bounds('line');
+        end = bililiteRange(editedElement()).line(endline).bounds('line');
       }
-      bililiteRange(document.activeElement
+      bililiteRange(editedElement()
         ).line(beginline).bounds('line').expandToInclude(end).select();
     });
   //delete the last N ___s
@@ -574,7 +580,7 @@ bililiteRange.bounds.BOF = function(){
           count = -count;
           type = 'indent';
         }
-        var range = bililiteRange(hilarious.editor).bounds('selection');
+        var range = bililiteRange(editedElement()).bounds('selection');
         if(count > 0) {
           var tab = ((unit === 'spaces') ? ' ' : tab_spaces);
           range.indent(tab.repeat(count)).select();
@@ -641,7 +647,7 @@ bililiteRange.bounds.BOF = function(){
           }
           re = new RegExp('(?:'+base_re+'){'+count+'}', re_flags);
         }
-        var range = bililiteRange(hilarious.editor).bounds('selection'
+        var range = bililiteRange(editedElement()).bounds('selection'
           ).bounds(backwards ? 'startbounds' : 'endbounds');
         if(/^word/.test(type)) {
           //var prevrange = range.clone();
