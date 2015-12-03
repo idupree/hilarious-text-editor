@@ -85,6 +85,31 @@
     }
   };
 
+  var runCommand = function(commandText, possibleResults) {
+    if (!possibleResults) {
+      possibleResults = [commandText];
+    }
+    // try and match recognized text to one of the commands on the list
+    for (var j = 0, l = commandsList.length; j < l; j++) {
+      var result = commandsList[j].command.exec(commandText);
+      if (result) {
+        var parameters = result.slice(1);
+        if (debugState) {
+          root.console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
+          if (parameters.length) {
+            root.console.log('with parameters', parameters);
+          }
+        }
+        // execute the matched command
+        commandsList[j].callback.apply(this, parameters);
+        invokeCallbacks(callbacks.resultMatch, commandText,
+          commandsList[j].originalPhrase, possibleResults);
+        return true;
+      }
+    }
+    return false;
+  };
+
   root.annyang = {
 
     /**
@@ -213,23 +238,8 @@
           if (debugState) {
             root.console.log('Speech recognized: %c'+commandText, debugStyle);
           }
-
-          // try and match recognized text to one of the commands on the list
-          for (var j = 0, l = commandsList.length; j < l; j++) {
-            var result = commandsList[j].command.exec(commandText);
-            if (result) {
-              var parameters = result.slice(1);
-              if (debugState) {
-                root.console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
-                if (parameters.length) {
-                  root.console.log('with parameters', parameters);
-                }
-              }
-              // execute the matched command
-              commandsList[j].callback.apply(this, parameters);
-              invokeCallbacks(callbacks.resultMatch, commandText, commandsList[j].originalPhrase, results);
-              return true;
-            }
+          if (runCommand(commandText, results)) {
+            return true;
           }
         }
         invokeCallbacks(callbacks.resultNoMatch, results);
@@ -477,7 +487,16 @@
         return;
       }
       callbacks[type].push({callback: cb, context: context || this});
-    }
+    },
+
+    /**
+     * Runs the command specified by the text
+     * as if the text were the result of speech recognition.
+     * Returns true if any command was matched.
+     *
+     * @param {String} commandText - text of command
+     */
+    runCommand: runCommand
   };
 
 }).call(this);
