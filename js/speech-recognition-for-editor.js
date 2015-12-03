@@ -349,6 +349,7 @@ bililiteRange.bounds.BOF = function(){
   // "that's not a command"
   // literal? verbatim?
   // matching parenthesis/es  enclosing
+  // "select all" but "delete all"? "[select/delete] from beginning to end"
 
   // s/number/count? yeah
   // n--- explicit capture--- using it here--
