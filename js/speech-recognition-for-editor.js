@@ -705,4 +705,83 @@ bililiteRange.bounds.BOF = function(){
   });
   annyang.start();
 
+
+var tests = [
+  ['ab|cd', 'hotel', 'abh|cd'],
+  ['ab^c$d', 'dictate q', 'abq|d'],
+];
+var parseCursorPosStr = function(str) {
+  // special chars =, |, ^, $
+  // | means begin and end selection
+  // ^ means begin selection
+  // $ means end selection
+  // =. means literal ., so =| means pipe, == means =, etc.
+  //    (= not \ so that string escaping is less confusing than \\\\)
+  var dullTokens = '(?:[^=|^$]|=[=|^$])*';
+  var validre = new RegExp('^(' + dullTokens + ')(?:[\\^](' + dullTokens +
+                                          ')[$]|[|])(' + dullTokens + ')$');
+  var match = validre.exec(str);
+  console.assert(match);
+  var deescape = function(s) { return s.replace(/=(.)/g, '$1'); };
+  var beforeCursor = deescape(match[1]);
+  var withinCursor = deescape(match[2] || '');
+  var afterCursor = deescape(match[3]);
+  var cursorStart = beforeCursor.length;
+  var cursorEnd = beforeCursor.length + withinCursor.length;
+  var text = beforeCursor + withinCursor + afterCursor;
+  return {
+    text: text,
+    beforeCursor: beforeCursor,
+    withinCursor: withinCursor,
+    afterCursor: afterCursor,
+    cursorStartAndEnd: [cursorStart, cursorEnd],
+  };
+};
+var makeCursorPosStr = function(text, cursorStartAndEnd) {
+  var reescape = function(s) { return s.replace(/([=|^$])/g, '=$1'); };
+  var beforeCursor = reescape(text.slice(0, cursorStartAndEnd[0]));
+  var withinCursor = reescape(text.slice(cursorStartAndEnd[0], cursorStartAndEnd[1]));
+  var afterCursor = reescape(text.slice(cursorStartAndEnd[1]));
+  var cursorCharStart = (withinCursor ? '^' : '|');
+  var cursorCharEnd = (withinCursor ? '$' : '');
+  var str = beforeCursor + cursorCharStart + withinCursor + cursorCharEnd + afterCursor;
+  return str;
+};
+var runTextareaTest = function(test) {
+  var start = parseCursorPosStr(test[0]);
+  var commands = test[1];
+  if(!_.isArray(commands)) {
+    commands = [commands];
+  }
+  var end = parseCursorPosStr(test[2]);
+  var textarea = document.createElement('textarea');
+  textarea.value = start.text;
+  document.body.appendChild(textarea);
+  textarea.focus();
+  bililiteRange(textarea).bounds(start.cursorStartAndEnd).select();
+  _.each(commands, function(command) {
+    annyang.runCommand(command);
+  });
+  var actualEndText = textarea.value;
+  var actualEndSelection = bililiteRange(textarea).bounds('selection').bounds();
+  if(actualEndText === end.text &&
+      actualEndSelection[0] === end.cursorStartAndEnd[0] &&
+      actualEndSelection[1] === end.cursorStartAndEnd[1]) {
+    console.log("Test passes!", test);
+  } else {
+    console.error("Test fails!", test,
+      "actual result (as str showing cursor pos):",
+      makeCursorPosStr(actualEndText, actualEndSelection));
+  }
+  document.body.removeChild(textarea);
+};
+// always? what if that's slow, or confuses an accessibility technology
+setTimeout(function() {
+  var oldActiveElement = document.activeElement;
+  _.each(tests, function(test) {
+    runTextareaTest(test);
+  });
+  oldActiveElement.focus();
+}, 100);
+
 }());
