@@ -727,9 +727,497 @@ bililiteRange.bounds.BOF = function(){
   annyang.start();
 
 
+  // <words> optional wrapper "the phrase <words>"
+  // the next three identifiers? letters(unicode class), symbols(unicode classes,..), token (lang dependent :/),
+  // biggest deal i can think of with token incompat is...
+  // comments, well never mind...
+  // tokens with dashes, vs subtraction. Maybe can guess from context?
+  // bigword:
+  //   font-family:
+  //   class="a-b c-d e-f"
+  //   word-break: break-word
+  // smallword:
+  //   (ax-b)
+  //   a[i]-b[i]
+  // "The sentence" -- hm detecting common abbreviations and/or "  "; also quotations that contain .s
+// AHA this should be CSV/TSV so I can also edit it in a graphical way??
+// commands separated by ; for this then that and ; for first recognition result and second recognition result?
+// chars that recognition won't produce: I need two of them
+// >>
+// ||
+// Should the user be able to say "then"?
+// what if they say it as part of a "the phrase" and or "dictate"?;"the code";"no magic space dictate"
+// TSV makes sense but/and like can my editor insert tab characters... hopefully soon??
 var tests = [
   ['ab|cd', 'hotel', 'abh|cd'],
   ['ab^c$d', 'dictate q', 'abq|d'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the next two words', 'lorem ipsum ^dolor sit$ amet, quod'],
+  ['lorem ipsum ^dolor$ sit amet, quod', 'select the next two words', 'lorem ipsum dolor ^sit amet$, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select through the next two words', 'lorem ^ipsum dolor sit$ amet, quod'],
+  ['lorem ipsum ^dolor$ sit amet, quod', 'select through the next two words', 'lorem ipsum ^dolor sit amet$, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'delete the next two words', 'lorem ipsum| amet, quod'],
+  ['lorem ipsum ^dolor$ sit amet, quod', 'delete through the next two words', 'lorem ipsum|, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'go forward two characters', 'lorem ipsum d|olor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'go back two characters', 'lore|m ipsum dolor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'extend the selection forward two characters', 'lorem ^ipsum d$olor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select through forward two characters', 'lorem ^ipsum d$olor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select through the next two characters', 'lorem ^ipsum d$olor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the next two characters', 'lorem ipsum^ d$olor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'go back two characters', 'lore|m ipsum dolor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'go left', 'lorem |ipsum dolor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'go right', 'lorem ipsum| dolor sit amet, quod'],
+  // is this worth the less accurate speech recognition options, even if I parse well?:
+  ['lorem ^ipsum$ dolor sit amet, quod', 'go right then go back two characters', 'lorem ips|um dolor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'delete the word', 'lorem| dolor sit amet, quod'],
+  ['\n^lorem$ ipsum dolor sit amet, quod', 'delete the word', '\n|ipsum dolor sit amet, quod'],
+  ['lorem ip^s$um dolor sit amet, quod', 'delete the word', 'lorem| dolor sit amet, quod'],
+  ['lorem ipsum| dolor sit amet, quod', 'delete the word', 'lorem| dolor sit amet, quod'],
+  ['lorem |ipsum dolor sit amet, quod', 'delete the word', 'lorem| dolor sit amet, quod'],
+  ['lorem^ $ipsum dolor sit amet, quod', 'delete the word', 'lorem^ $ipsum dolor sit amet, quod'], // special: not recognized, see if there is a similar recognition that is, maybe?
+  ['lorem^ $ipsum dolor sit amet, quod', 'delete the words', '| dolor sit amet, quod'],
+  ['lo^rem ip$sum dolor sit amet, quod', 'delete the word', 'lo^rem ip$sum dolor sit amet, quod'],
+  ['lo^rem ip$sum dolor sit amet, quod', 'delete the words', '|dolor sit amet, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet', 'lorem ipsum dolor ^sit amet$, quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet comma', 'lorem ipsum dolor ^sit amet,$ quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet comma space', 'lorem ipsum dolor ^sit amet, $quod'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet quod', 'lorem ipsum dolor ^sit amet, quod$'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet comma quod', 'lorem ipsum dolor ^sit amet, quod$'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet comma space quod', 'lorem ipsum dolor ^sit amet, quod$'],
+  ['lorem ^ipsum$ dolor sit amet, quod', 'select the phrase sit amet space quod', 'lorem ipsum dolor ^sit amet, quod$'],
+  ['lorem ^ipsum dolor sit amet$, quod', 'select through the phrase sit amet', 'lorem ^ipsum dolor sit amet$, quod'],
+  ['lorem ^ipsum dolor sit amet$, quod', 'select through sit amet', 'lorem ^ipsum dolor sit amet$, quod'],
+  ['lorem ^ipsum dolor sit amet$, quod', 'select lorem', '^lorem$ ipsum dolor sit amet, quod'],
+  // TODO what about soft-wrapped vs hard-wrapped lines? I should support commands
+  // that refer to visual lines and test them with e.g. 80character lines(?)
+  // "go to soft beginning of line"? "go to beginning of the soft line"?
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to start of line', 'lorem ipsum\n|dolor sit\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to the start of line', 'lorem ipsum\n|dolor sit\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to start of the line', 'lorem ipsum\n|dolor sit\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to the start of the line', 'lorem ipsum\n|dolor sit\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to beginning of line', 'lorem ipsum\n|dolor sit\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to the beginning of the line', 'lorem ipsum\n|dolor sit\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to end of line', 'lorem ipsum\ndolor sit|\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'go to the end of the line', 'lorem ipsum\ndolor sit|\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'select the end of the line', 'lorem ipsum\ndolor sit|\namet, quod'],
+  ['lorem ipsum\ndolor s|it\namet, quod', 'select through the end of the line', 'lorem ipsum\ndolor s^it$\namet, quod'],
+  ['lorem ipsum|', 'dictate dolor sit', 'lorem ipsum dolor sit|'],
+  ['lorem ipsum |', 'dictate dolor sit', 'lorem ipsum dolor sit|'],
+  ['lorem ipsum  |', 'dictate dolor sit', 'lorem ipsum dolor sit|'],
+  ['lorem ipsum\n|', 'dictate dolor sit', 'lorem ipsum\ndolor sit|'], // hmm should there be anything about capitalization
+  ['lorem ipsum \n|', 'dictate dolor sit', 'lorem ipsum \ndolor sit|'],
+  ['lorem ipsum \n |', 'dictate dolor sit', 'lorem ipsum \n dolor sit|'],
+  ['lorem ipsum\n |', 'dictate dolor sit', 'lorem ipsum\n dolor sit|'],
+  ['lorem ipsum\n  |', 'dictate dolor sit', 'lorem ipsum\n  dolor sit|'],
+  ['lorem| sit', 'dictate ipsum dolor', 'lorem ipsum dolor| sit'],
+  ['lorem |sit', 'dictate ipsum dolor', 'lorem ipsum dolor| sit'], // i'm sceptical that it should move the cursor away from 'sit' like that?
+  ['lorem | sit', 'dictate ipsum dolor', 'lorem ipsum dolor| sit'],
+  ['lorem   |   sit', 'dictate ipsum dolor', 'lorem ipsum dolor| sit'],
+  // one vs two spaces at end of sentence?? two spaces is easier to measure programmatically
+  // but editors hate it. also do you want any auto capitalization/decapitalization.
+  ['amet| consectetur', 'period', 'amet.|  consectetur'],
+  ['amet| consectetur', 'full stop', 'amet.|  consectetur'],
+  // programming does different things. For now, simply put the dot there I guess?
+  // Although usually the dot has no space on either side.
+  // Exceptions include Haskell dot-as-function-composition,
+  // python "import x from .y"...
+  // .. is part of unix paths
+  // ... is ellipsis and also has unicode version, hm, should there be mode or policy for that
+  // .... sometimes means "ellipsis that includes ending with an end-of-sentence"
+  ['amet| consectetur', 'dot', 'amet.| consectetur'],
+  ['amet |consectetur', 'dot', 'amet .|consectetur'],
+  ['amet |consectetur', 'dot dot', 'amet ..|consectetur'],
+  ['amet |consectetur', 'dot dot dot', 'amet ...|consectetur'],
+  ['amet |consectetur', 'dot dot dot dot', 'amet ....|consectetur'],
+  // luckily U+002C COMMA is used in about the same way in code as prose,
+  // no space to the left, space or newline to the right.
+  // Hmm I wonder if to make some of the tests have a "recently inserted stuff" markers too, for "that"
+  // (or, I can add tests with "then select that")
+  ['amet| consectetur', 'comma', 'amet,| consectetur'],
+  ['amet |consectetur', 'comma', 'amet,| consectetur'],
+  // Colon is a bit harder than comma but not bad for most uses.
+  // Hash definition glues the : to the left like English.
+  // Type annotation either glues to the left or puts spaces on both/neither side.
+  // Haskell list constructor ":" is also symmetric. As is, usually,
+  // the if/then/else "?:" operator.
+  // I wonder.  If I can define most symbol spacing rules by a few variables.
+  // And then come up with ways to customize them by voice and
+  // in defaults.  "spacey colons"/"wordlike colons". "no space colons"
+  // "preserve-space colons".  "left glue colons".
+  // I haven't even yet written tests for how symbols interact with *each other* much.
+  // I wonder if any Unicode-data has defaults for symbol spacing I could
+  // use and make manual exceptions to...
+  ['amet| consectetur', 'colon', 'amet:| consectetur'],
+  ['amet |consectetur', 'colon', 'amet:| consectetur'],
+  // double colon has spaces in Haskell type annotation
+  // but no spaces in C++ namespacing... hmm.
+  ['amet| consectetur', 'double colon', 'amet ::| consectetur'],
+  ['amet |consectetur', 'double colon', 'amet ::| consectetur'],
+  ['amet |consectetur', 'colon colon', 'amet ::| consectetur'],
+  ['amet |consectetur', 'colons', 'amet ::| consectetur'],
+
+  // math/programming (again, what about unicode timesing, division, subtraction)
+  // maybe special add "unicode times/multiply", "unicode minus", "unicode divide"
+  // and/or a mode
+  ['amet |consectetur', 'times', 'amet *| consectetur'],
+  ['amet |consectetur', 'multiply', 'amet *| consectetur'],
+  ['amet |consectetur', 'multiplied by', 'amet *| consectetur'],
+  ['amet|consectetur', 'times', 'amet *| consectetur'], // hmm or no spaces? you can say * if you want no spaces..
+  ['amet |consectetur', 'divide', 'amet /| consectetur'],
+  ['amet |consectetur', 'divided by', 'amet /| consectetur'],
+  // percent/mod/rem/modulus/remainder/format(python)/...?
+  // 100% but 100 % 13
+  // also "mod" is a common enough word e.g. Haskell `mod` modulus
+  // and Rust mod (module)
+  ['amet |consectetur', 'percent', 'amet %| consectetur'],
+  ['400 |consectetur', 'percent', '400%| consectetur'],
+  ['amet|consectetur', 'percent', 'amet%|consectetur'], // hmm or spaces or?
+  ['400|consectetur', 'percent', '400%|consectetur'],
+  ['amet |consectetur', 'minus', 'amet -| consectetur'],
+  ['amet |consectetur', 'subtract', 'amet -| consectetur'],
+  //['amet |consectetur', 'subtraction', 'amet -| consectetur'],
+  // Pointer deref is unlike multiplication:
+  ['amet |consectetur', 'star', 'amet *|consectetur'],
+  ['amet| consectetur', 'star', 'amet*| consectetur'],
+  ['amet| consectetur', 'asterisk', 'amet*| consectetur'],
+  ['amet | consectetur', 'star', 'amet *| consectetur'],
+  ['amet|consectetur', 'star', 'amet*|consectetur'],
+  ['amet  |  consectetur', 'star', 'amet  *|  consectetur'],
+  ['amet| consectetur', 'slash', 'amet/| consectetur'],
+  ['amet |consectetur', 'slash', 'amet /|consectetur'],
+  // backslash is mainly used in computing in a spacing-sensitive
+  // manner so definitely don't change space around it when inserting
+  ['amet| consectetur', 'backslash', 'amet\\| consectetur'],
+  ['amet | consectetur', 'backslash', 'amet \\| consectetur'],
+  ['amet |consectetur', 'backslash', 'amet \\|consectetur'],
+  ['amet | consectetur', 'double backslash', 'amet \\\\| consectetur'],
+  ['amet | consectetur', 'two backslash', 'amet \\\\| consectetur'],
+  ['amet | consectetur', 'quad backslash', 'amet \\\\\\\\| consectetur'],
+  ['amet | consectetur', 'quadruple backslash', 'amet \\\\\\\\| consectetur'],
+  ['amet | consectetur', '4 backslash', 'amet \\\\\\\\| consectetur'],
+  // homophone
+  ['amet | consectetur', 'for backslash', 'amet \\\\\\\\| consectetur'],
+  // yes sadly 8 backslashes is needed sometimes.
+  // I'll include 16 too, for good measure.
+  // Maybe any number should work?
+  // (I wonder how much anything would break if I allow any number for anything.)
+  ['amet | consectetur', '8 backslash', 'amet \\\\\\\\\\\\\\\\| consectetur'],
+  ['amet | consectetur', '8 backslashes', 'amet \\\\\\\\\\\\\\\\| consectetur'],
+  ['amet | consectetur', 'octuple backslash', 'amet \\\\\\\\\\\\\\\\| consectetur'],
+  ['amet | consectetur', '16 backslash', 'amet \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\| consectetur'],
+  ['amet | consectetur', '13 backslash', 'amet \\\\\\\\\\\\\\\\\\\\\\\\\\| consectetur'],
+
+  // exclamation marks vary in code AND in sentences! hmm.
+  ['amet |consectetur', 'exclamation mark', 'amet!|  consectetur'],
+  ['amet| consectetur', 'exclamation mark', 'amet!|  consectetur'],
+  ['amet| consectetur', 'exclamation point', 'amet!|  consectetur'],
+  ['amet| consectetur', 'exclamation', 'amet!|  consectetur'],
+  // is this any good of a way to have it in code?, "bang"?
+  // things it means includes "mutates stuff", "not", "array indexing(haskell)", strictness(haskell)
+  ['amet |consectetur', 'bang', 'amet !|consectetur'],
+  ['amet| consectetur', 'bang', 'amet!| consectetur'],
+  ['amet |consectetur', 'bang bang', 'amet !!|consectetur'],
+  ['amet| consectetur', 'bang bang', 'amet!!| consectetur'],
+  ['amet |consectetur', 'double bang', 'amet !!|consectetur'],
+
+  // question mark
+  // https://english.stackexchange.com/questions/58014/is-there-an-alternative-one-word-name-for-the-question-mark
+  ['amet |consectetur', 'question mark', 'amet?| consectetur'],
+  ['amet |consectetur', 'question point', 'amet?| consectetur'],
+  ['amet |consectetur', 'question sign', 'amet?| consectetur'],
+  ['amet |consectetur', 'question symbol', 'amet?| consectetur'],
+  ['amet |consectetur', 'interrogation point', 'amet?| consectetur'],
+  ['amet |consectetur', 'interrogation mark', 'amet?| consectetur'],
+  // I guess "hook" will do for the programmer's "don't change the spaces" version??
+  ['amet |consectetur', 'hook', 'amet ?|consectetur'],
+  ['amet |consectetur', 'hook sign', 'amet ?|consectetur'],
+
+  // other ? ! related symbols
+  ['amet |consectetur', 'interrobang', 'amet‽| consectetur'],
+  ['amet| consectetur', 'inverted exclamation mark', 'amet |¡consectetur'],
+  ['amet| consectetur', 'inverted question mark', 'amet |¿consectetur'],
+  ['amet| consectetur', 'inverted interrobang', 'amet |⸘consectetur'],
+
+
+  // no idea about @ and spaces. I guess the main use is for
+  // email addresses and twitter handles so no spaces.
+  // But don't delete spaces in case they were wanted? I guess?
+  ['amet |consectetur', 'at sign', 'amet @|consectetur'],
+  ['amet| consectetur', 'at sign', 'amet@| consectetur'],
+
+  // ^ has various weird uses so don't dictate any particular
+  // spacing around it.  It needs escaping with = in our special syntax.
+  ['amet |consectetur', 'caret', 'amet =^|consectetur'],
+  // people, including voice recognition, don't know how to spell caret
+  // so accept the most common homophone
+  ['amet |consectetur', 'carrot', 'amet =^|consectetur'],
+  // and another common name
+  ['amet |consectetur', 'hat sign', 'amet =^|consectetur'],
+
+
+  // # often has a space before it but not after it,
+  // in hashtags, idiomatic C preprocessor use, "#1".
+  // Though when it is the line-comment symbol in code,
+  // it usually has a space after it too, dunno.
+  //
+  // "#" is sometimes called "pound" but GBP £ is also
+  // a symbol for pounds so that could get confusing.
+  // (U+00A3 POUND SIGN).
+  //
+  // "#" is not a music sharp sign; that character
+  // is U+266F MUSIC SHARP SIGN ♯.  Pedantically,
+  // the programming language C♯ is written with
+  // a sharp sign, but they accept that it is easier
+  // for people to write C# so this has increased the
+  // confusion.  Nevertheless, ♯ and ♭ should stay
+  // whole, as there are plenty of other ways to say
+  // #.
+  ['amet |consectetur', 'hashtag', 'amet #|consectetur'],
+  ['amet |consectetur', 'hash symbol', 'amet #|consectetur'],
+  ['amet |consectetur', 'hash sign', 'amet #|consectetur'],
+  ['amet| consectetur', 'hash sign', 'amet#| consectetur'], // I guess use this spacing??
+  ['amet |consectetur', 'hash', 'amet #|consectetur'],
+  ['amet |consectetur', 'hashtag symbol', 'amet #|consectetur'],
+  //['amet |consectetur', 'pound sign', 'amet #|consectetur'],
+  //['amet |consectetur', 'pound symbol', 'amet #|consectetur'],
+  //['amet |consectetur', 'pound', 'amet #|consectetur'],
+  ['amet |consectetur', 'number sign', 'amet #|consectetur'],
+  ['amet |consectetur', 'octothorpe', 'amet #|consectetur'],
+  // crosshatch, waffle, lots of other wikipedia-listed obscure names?
+  // nah for now.
+
+  // are there any spacing conventions? how are these used in
+  // plaintext anyway?
+  ['amet |consectetur', 'flat sign', 'amet ♭|consectetur'],
+  ['amet |consectetur', 'sharp sign', 'amet ♯|consectetur'],
+  ['amet |consectetur', 'music sharp sign', 'amet ♯|consectetur'],
+  ['amet |consectetur', 'musical sharp sign', 'amet ♯|consectetur'],
+
+
+  // $ is often a prefix. Should I do anything about that?
+  // ($ is escaped by the = here from meaning something about
+  // the selection.)
+  ['amet |consectetur', 'dollar sign', 'amet =$|consectetur'],
+  ['amet| consectetur', 'dollar sign', 'amet=$| consectetur'],
+  ['amet |consectetur', 'dollar symbol', 'amet =$|consectetur'],
+
+  // other similar currencies
+  ['amet |consectetur', 'euro sign', 'amet €|consectetur'],
+  ['amet |consectetur', 'euro symbol', 'amet €|consectetur'],
+  // despite the ambiguity with #, I don't see a good other
+  // way to write this, and GBP are important in English.
+  ['amet |consectetur', 'pound sign', 'amet £|consectetur'],
+  ['amet |consectetur', 'yen sign', 'amet ¥|consectetur'],
+  // if I did anything with spaces and currencies, cents
+  // would get a different convention
+  ['amet |consectetur', 'cent sign', 'amet ¢|consectetur'],
+  ['amet |consectetur', 'cents sign', 'amet ¢|consectetur'],
+
+  // These are used as operators and parentheses so give different
+  // names for each spacing.
+  // Less than or equals sign has a good unicode version
+  // and a conventional ASCII version and they are different.
+  // What if I had a weird convention where "sign" meant ASCII
+  // and "symbol" meant unicode?
+  // I am growing to think that an EVIL MODE -
+  // unicode on / unicode off
+  // might be best.  Easy to fix unless you are doing a lot of
+  // both like writing down a literal hashtable between
+  // unicode and ascii versions ;-)
+  // Default to unicode and show an info-bar saying how to switch? I guess?
+  // Note that the equal signs have to be escaped with more equal signs.
+  ['amet |consectetur', 'less than sign', 'amet <| consectetur'],
+  ['amet |consectetur', 'less than or equal to sign', 'amet <==| consectetur'],
+  ['amet |consectetur', 'less than or equals sign', 'amet <==| consectetur'],
+  ['amet |consectetur', 'greater than or equal to sign', 'amet >==| consectetur'],
+  ['amet |consectetur', 'greater than or equal to sign', 'amet >==| consectetur'],
+  ['amet |consectetur', 'greater than sign', 'amet >==| consectetur'],
+  ['amet |consectetur', 'less than or equal to or greater than sign', 'amet <==>| consectetur'],
+  ['amet |consectetur', 'less or equal or greater sign', 'amet <==>| consectetur'],
+  ['amet |consectetur', 'spaceship operator', 'amet <==>| consectetur'],
+  // What are the names of the => and -> arrows in code?
+  ['amet |consectetur', 'fat arrow', 'amet ==>| consectetur'],
+  ['amet |consectetur', 'right fat arrow', 'amet ==>| consectetur'],
+  ['amet |consectetur', 'left fat arrow', 'amet <==| consectetur'],
+  ['amet |consectetur', 'thin arrow', 'amet ->| consectetur'],
+  ['amet |consectetur', 'arrow', 'amet ->| consectetur'],
+  ['amet |consectetur', 'right thin arrow', 'amet ->| consectetur'],
+  ['amet |consectetur', 'right arrow', 'amet ->| consectetur'],
+  ['amet |consectetur', 'left arrow', 'amet <-| consectetur'],
+  ['amet |consectetur', 'left thin arrow', 'amet <-| consectetur'],
+  // shovel/shift operator; rarely, double grouping?
+  ['amet |consectetur', 'left double angle', 'amet <<| consectetur'],
+  ['amet |consectetur', 'double left angle', 'amet <<| consectetur'],
+  ['amet |consectetur', 'double less than sign', 'amet <<| consectetur'],
+  ['amet |consectetur', 'left double angle', 'amet <<| consectetur'],
+
+  ['amet |consectetur', 'right double angle', 'amet >>| consectetur'],
+  ['amet |consectetur', 'double right angle', 'amet >>| consectetur'],
+  ['amet |consectetur', 'double greater than sign', 'amet >>| consectetur'],
+  ['amet |consectetur', 'right double angle', 'amet >>| consectetur'],
+
+  ['amet |consectetur', 'right triple angle', 'amet >>>| consectetur'],
+  ['amet |consectetur', 'triple right angle', 'amet >>>| consectetur'],
+  ['amet |consectetur', 'triple greater than sign', 'amet >>>| consectetur'],
+  ['amet |consectetur', 'right triple angle', 'amet >>>| consectetur'],
+
+  // maaaan if i can make it user friendly enough to define your own matching expressions,
+  // and share your definitions.
+  // then people can make things like "bind symbol" >>= for haskell...
+
+  // < and > as grouping!
+  ['amet |consectetur', 'left angle bracket', 'amet <|consectetur'],
+  ['amet |consectetur', 'left angle sign', 'amet <|consectetur'],
+  ['amet |consectetur', 'left angle', 'amet <|consectetur'], // I guess?
+  ['amet |consectetur', 'double left angle bracket', 'amet <<|consectetur'],
+  ['amet |consectetur', 'right angle bracket', 'amet>| consectetur'],
+  ['amet |consectetur', 'double right angle bracket', 'amet>>| consectetur'],
+  ['amet |consectetur', 'right double angle bracket', 'amet>>| consectetur'],
+  // Is this right? What about how some human languages use
+  // «quotes» while some use »quotes«?
+  // The unicode full name for « is LEFT-POINTING DOUBLE ANGLE QUOTATION MARK.
+  // In general how to all these adjectives?
+  // "left/right" "single/double/triple" "unicode/ascii"
+  // "no cap/cap" "no space/space/"(does one delete spaces, or leave unchanged or?)
+  //
+  // maybe parse into a js object with optional or default vals?
+  // {
+  //   dir: 'left'|'right'|'none'|null(default/undefined; sometimes valid)
+  //        |'up' etc occasionally
+  //   count: 1|2|3    // 'single'(default)|'double'|'triple'
+  //   charset: 'unicode'|'ascii'|null
+  //   cap: 'allcaps'|'titlecaps'|'downcase'|default|'camelcase'(er that has to do with spaces too)|
+  //
+  //
+  // (btw the speech recognition understands me better saying "ASCII"
+  // when I pronounce the A as "ah" as in "aha" than "aaa" as in "bat")
+  ['amet |consectetur', 'left chevron', 'amet <<|consectetur'],
+  ['amet |consectetur', 'left guillemet', 'amet <<|consectetur'],
+  ['amet |consectetur', 'right chevron', 'amet>>| consectetur'],
+  ['amet |consectetur', 'right guillemet', 'amet>>| consectetur'],
+  ['amet |consectetur', 'right ascii guillemet', 'amet>>| consectetur'],
+  ['amet |consectetur', 'right unicode guillemet', 'amet»| consectetur'],
+
+  ['amet |consectetur', 'left paren', 'amet (|consectetur'],
+  ['amet |consectetur', 'right paren', 'amet)| consectetur'],
+  ['amet | consectetur', 'right paren', 'amet)| consectetur'],
+  ['amet|consectetur', 'right paren', 'amet)|consectetur'],
+  ['amet |consectetur', 'right bracket', 'amet]| consectetur'],
+  ['amet |consectetur', 'right brace', 'amet}| consectetur'],
+
+  // WHAT ABOUT SMART QUOTES IF YOU DON'T SAY LEFT OR RIGHT
+  // or something
+  ['amet |consectetur', 'quotation mark', 'amet "|consectetur'],
+  ['amet |consectetur', 'left quotation mark', 'amet “|consectetur'],
+  ['amet| consectetur', 'left quotation mark', 'amet “|consectetur'],
+  ['amet| consectetur', 'left double quotation mark', 'amet “|consectetur'],
+  ['amet| consectetur', 'left single quotation mark', 'amet ‘|consectetur'],
+  ['amet| consectetur', 'single left quotation mark', 'amet ‘|consectetur'],
+  ['amet |consectetur', 'right quotation mark', 'amet”| consectetur'],
+  ['amet |consectetur', 'right single quotation mark', 'amet’| consectetur'],
+  // HAHAHA python uses these
+  // Do I want to even allow "double triple quotation mark" or
+  // (implicitly single or double?) "triple quotation mark"?
+  // Or just these? If I represent these as a count then I guess
+  // they will be an array of counts??
+  ['amet |consectetur', 'triple single quotation mark', 'amet \'\'\'|consectetur'],
+  ['amet |consectetur', 'triple double quotation mark', 'amet \"\"\"|consectetur'],
+
+  // These characters are weird and generally meaningless
+  // in normal language so I'll treat them as programming
+  // and I don't think they have special spacing conventions?
+  ['amet |consectetur', 'tilde', 'amet ~|consectetur'],
+  ['amet |consectetur', 'tilde tilde', 'amet ~~|consectetur'],
+  ['amet |consectetur', 'double tilde', 'amet ~~|consectetur'],
+  // I had some trouble getting the speech recognition;
+  // "back quote" was the closest I got semi-reliably,
+  // or "grave accent" (but shouldn't that one be reserved
+  // for actually putting an accent on another character?)
+  ['amet |consectetur', 'backtick', 'amet `|consectetur'],
+  ['amet |consectetur', 'back tick', 'amet `|consectetur'],
+  ['amet |consectetur', 'backquote', 'amet `|consectetur'],
+  ['amet |consectetur', 'back quote', 'amet `|consectetur'],
+  ['amet |consectetur', 'backtick', 'amet `|consectetur'],
+  //['amet |consectetur', 'grave accent', 'amet `|consectetur'],
+
+
+  // ampersand means "pointer to", "bitwise and", "and"...
+  // ampersand no space? should i insert space?
+  //['amet |consectetur', 'ampersand', 'amet &|consectetur'],
+  ['amet |consectetur', 'ampersand', 'amet &| consectetur'],
+  ['amet| consectetur', 'ampersand', 'amet &| consectetur'],
+  ['amet |consectetur', 'double ampersand', 'amet &&| consectetur'],
+  ['amet |consectetur', 'ampersand ampersand', 'amet &&| consectetur'],
+  ['amet |consectetur', 'triple ampersand', 'amet &&&| consectetur'],
+  ['amet |consectetur', 'ampersand ampersand', 'amet &&&| consectetur'],
+  // quadruple? (never seen a need for it yet but may be out there)
+  ['amet &| consectetur', 'ampersand', 'amet &&| consectetur'],
+  ['amet & |consectetur', 'ampersand', 'amet &&| consectetur'],
+  ['amet |& consectetur', 'ampersand', 'amet &|& consectetur'],
+
+  // note escaping character is = here
+  // pipe/vertical bar usually has spaces around it (besides next to symbols)
+  ['amet |consectetur', 'pipe', 'amet =|| consectetur'],
+  ['amet |consectetur', 'vertical bar', 'amet =|| consectetur'],
+  ['amet |consectetur', 'pipe pipe', 'amet =|=|| consectetur'],
+  ['amet |consectetur', 'double pipe', 'amet =|=|| consectetur'],
+  ['amet |consectetur', 'vertical bar vertical bar', 'amet =|=|| consectetur'],
+  ['amet |consectetur', 'double vertical bar', 'amet =|=|| consectetur'],
+  // some word switches that don't make that much sense but sometimes
+  // people switch words around by accident and I think it doesn't
+  // hurt to match them here.
+  ['amet |consectetur', 'vertical double bar', 'amet =|=|| consectetur'],
+  ['amet |consectetur', 'vertical bar bar', 'amet =|=|| consectetur'],
+  ['amet |consectetur', 'triple pipe', 'amet =|=|=|| consectetur'],
+  ['amet |consectetur', 'pipe pipe pipe', 'amet =|=|=|| consectetur'],
+  ['amet |consectetur', 'pipe double pipe', 'amet =|=|=|| consectetur'], //is this needed?
+  ['amet |consectetur', 'equal sign', 'amet ==| consectetur'],
+  ['amet |consectetur', 'double equal sign', 'amet ====| consectetur'],
+  ['amet|consectetur', 'triple equal sign', 'amet ======| consectetur'],
+  ['amet |consectetur', 'bang equals', 'amet !==| consectetur'],
+  ['amet |consectetur', 'bang equals equals', 'amet !====| consectetur'],
+  ['amet |consectetur', 'bang double equals', 'amet !====| consectetur'],
+  ['amet |consectetur', 'exclamation equals sign', 'amet !==| consectetur'],
+  ['amet |consectetur', 'exclamation mark equals', 'amet !==| consectetur'],
+  // other programming languages' not-equalses:
+  ['amet |consectetur', 'slash equals sign', 'amet /==| consectetur'],
+  // gee "tilde equals sign" could also mean
+  // U+2245 APPROXIMATELY EQUAL TO  ≅
+  // U+2248 ALMOST EQUAL TO  ≈
+  ['amet |consectetur', 'tilde equals sign', 'amet ~==| consectetur'],
+  ['amet |consectetur', 'tilde equals', 'amet ~==| consectetur'],
+  // many languages have x += 3, etc. hmm.
+  ['amet |consectetur', 'plus equals sign', 'amet +==| consectetur'],
+  ['amet |consectetur', 'plus equals', 'amet +==| consectetur'],
+  ['amet |consectetur', 'minus equals', 'amet -==| consectetur'],
+  ['amet |consectetur', 'times equals', 'amet *==| consectetur'],
+  ['amet |consectetur', 'star equals', 'amet *==| consectetur'],
+  ['amet |consectetur', 'ampersand equals', 'amet &==| consectetur'],
+  ['amet |consectetur', 'double ampersand equals', 'amet &&==| consectetur'],
+  ['amet |consectetur', 'dollars equals', 'amet =$==| consectetur'],
+  ['amet |consectetur', 'percent equals', 'amet %==| consectetur'], // but what if you mean "100% equals the maximum percentage"
+  ['amet |consectetur', 'slash equals', 'amet /==| consectetur'],
+  ['amet |consectetur', 'divide equals', 'amet /==| consectetur'],
+  // python integer divide
+  ['amet |consectetur', 'double slash equals', 'amet //==| consectetur'],
+  ['amet |consectetur', 'slash slash equals', 'amet //==| consectetur'],
+  // I guess this one makes sense for parallelness too:
+  ['amet |consectetur', 'double divide equals', 'amet //==| consectetur'],
+  ['amet |consectetur', 'divide divide equals', 'amet //==| consectetur'],
+  // don't define "hat equals" because it could be confused with ≙??
+  // (U+2259 ESTIMATES, see
+  // https://math.stackexchange.com/questions/790019/what-is-the-symbol-%E2%89%99-most-commonly-used-for-in-a-mathematical-or-math-related-co
+  // )
+  ['amet |consectetur', 'caret equals', 'amet =^==| consectetur'],
+  ['amet |consectetur', 'carrot equals', 'amet =^==| consectetur'],
+
+
+  ['|', 'zero x 23', '0x23|'],
+  ['|', 'o x 23', '0x23|'],
+  ['|', 'zero x 2f', '0x2f|']
+
+
+// so-far-untested behavior: "click [text in link on page]", etc
+
 ];
 var parseCursorPosStr = function(str) {
   // special chars =, |, ^, $
