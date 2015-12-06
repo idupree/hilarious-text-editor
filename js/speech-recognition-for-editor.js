@@ -74,9 +74,25 @@ $.ajax({
 
 //function elementToApplyEditingCommandsTo() {
 //var artificiallyEditedElement = null; // for tests. er, wait, this'll change the active element possibly; hm
+// TODO what if the activeElement isn't supposed to be editable?
+// Like, if nothing is focused, which may mean <body> is?
+// Try to make it so you don't edit the DOM when nothing is selected
+// It could use some more refinement:
+// what if a checkbox is selected? not editable plz
+// but on the other hand:
+// what if a contentEditable area is selected?
+// (what's the best way to detect that?)
+// And should we send synthetic keydown/up events, too?
+// That might be helpful for key-navigated sites, even if
+// we're pointed at an un-editable part of the DOM, and
+// miiiight make it work with fancy editor things like CodeMirror.
 var editedElement = function() {
   //return artificiallyEditedElement || document.activeElement;
-  return document.activeElement;
+  var el = document.activeElement;
+  if(el.nodeName.toLowerCase() === 'body') {
+    el = null;
+  }
+  return el;
 };
 
 // For recognizing the user saying "U+03C1",
@@ -97,7 +113,11 @@ var editedElement = function() {
 var num_tab_spaces = 2;
 var tab_spaces = ' '.repeat(num_tab_spaces);
 function artificially_type(text) {
-  var selection = bililiteRange(editedElement()).bounds('selection');
+  var el = editedElement();
+  if(el === null || el.nodeName.toLowerCase() === 'body') {
+    return;
+  }
+  var selection = bililiteRange(el).bounds('selection');
   if(text == '\n') {
     selection.insertEOL().select();
   } else {
