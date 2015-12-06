@@ -742,7 +742,7 @@ var parseCursorPosStr = function(str) {
   var validre = new RegExp('^(' + dullTokens + ')(?:[\\^](' + dullTokens +
                                           ')[$]|[|])(' + dullTokens + ')$');
   var match = validre.exec(str);
-  console.assert(match);
+  console.assert(match, "valid string-with-cursor-pos pattern:", str);
   var deescape = function(s) { return s.replace(/=(.)/g, '$1'); };
   var beforeCursor = deescape(match[1]);
   var withinCursor = deescape(match[2] || '');
