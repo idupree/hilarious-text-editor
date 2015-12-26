@@ -86,6 +86,7 @@ function set_textarea_contents(text) {
   if(editor != null) {
     $(editor).remove();
   }
+  $('#textarea_container').empty(); // probably redundant
 
   var new_textarea = $(
     '<textarea' +

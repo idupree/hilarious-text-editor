@@ -1256,6 +1256,9 @@ var makeCursorPosStr = function(text, cursorStartAndEnd) {
   var str = beforeCursor + cursorCharStart + withinCursor + cursorCharEnd + afterCursor;
   return str;
 };
+var numPasses = 0;
+var numFails = 0;
+var fails = { selectionMajor: 0, selectionMinor: 0, whitespace: 0, content: 0, unimplemented: 0 };
 var runTextareaTest = function(test) {
   var start = parseCursorPosStr(test[0]);
   var commands = test[1];
@@ -1273,24 +1276,53 @@ var runTextareaTest = function(test) {
   });
   var actualEndText = textarea.value;
   var actualEndSelection = bililiteRange(textarea).bounds('selection').bounds();
+  document.body.removeChild(textarea);
   if(actualEndText === end.text &&
       actualEndSelection[0] === end.cursorStartAndEnd[0] &&
       actualEndSelection[1] === end.cursorStartAndEnd[1]) {
+    numPasses += 1;
     console.log("Test passes!", test);
   } else {
+    numFails += 1;
+    var actualEnd = makeCursorPosStr(actualEndText, actualEndSelection);
+    // types of failure:
+    // - selection loc only on a test that changes text
+    // - selection loc only on a test that doesn't change text
+    // - whitespace content wrong but otherwise ok
+    // - content very wrong
+    var textWrong = (actualEndText !== end.text);
+    var textVeryWrong = (actualEndText.replace(/\s/g, '') !== end.text.replace(/\s/g, ''));
+    var onlySelectionWrong = (!textWrong);
+    var testChangesText = (start.text !== end.text);
+    var seemsUnimplemented = (start.text === actualEndText &&
+      actualEndSelection[0] === start.cursorStartAndEnd[0] &&
+      actualEndSelection[1] === start.cursorStartAndEnd[1]);
+    var failType = (seemsUnimplemented ? 'unimplemented' : textVeryWrong ? 'content' : textWrong ? 'whitespace' : testChangesText ? 'selectionMinor' : 'selectionMajor');
+    fails[failType] += 1;
+    $('#textarea_container').append($('<div>').addClass('fail_'+failType).css({'white-space': 'pre-wrap'}
+      ).append($('<div>').text(commands.join('; ')).css({'color': ({unimplemented: '#c0f', content: '#f00', whitespace: '#f80', selectionMajor: '#880', selectionMinor: '#00f'})[failType], 'font-weight': 'bold'})
+      ).append($('<div>').text(test[0]).css({'color': '#000'})
+      ).append($('<div>').text(test[2]).css({'color': '#000'})
+      ).append($('<div>').text(actualEnd).css({'color': '#000'})
+      ).append($('<div>').html('&nbsp;')));
     console.error("Test fails!", test,
-      "actual result (as str showing cursor pos):",
-      makeCursorPosStr(actualEndText, actualEndSelection));
+      "actual result (as str showing cursor pos):", actualEnd);
   }
-  document.body.removeChild(textarea);
 };
-// always? what if that's slow, or confuses an accessibility technology
-setTimeout(function() {
+var runTests = function() {
   var oldActiveElement = document.activeElement;
   _.each(tests, function(test) {
     runTextareaTest(test);
   });
+  $('#textarea_container').prepend($('<div>').append(
+    $('<div>').text('tests: ' + (numPasses + numFails) + '; pass: ' + numPasses + '; fail: ' + numFails))
+    .append($('<div>').text(
+     '(unimplemented: ' + fails['unimplemented'] + ', content: ' + fails['content'] + ', whitespace: ' + fails['whitespace'] + ', selectionMajor: ' + fails['selectionMajor'] + ', selectionMinor: ' + fails['selectionMinor'] + ')'))
+    .append($('<div>').html('&nbsp;'))
+  );
   oldActiveElement.focus();
-}, 100);
+};
+// always? what if that's slow, or confuses an accessibility technology
+setTimeout(runTests, 100);
 
 }());
