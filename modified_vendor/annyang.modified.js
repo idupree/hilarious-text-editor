@@ -43,22 +43,6 @@
   var debugStyle = 'font-weight: bold; color: #00f;';
   var pauseListening = false;
 
-  // The command matching code is a modified version of Backbone.Router by Jeremy Ashkenas, under the MIT license.
-  var optionalParam = /\s*\((.*?)\)\s*/g;
-  var optionalRegex = /(\(\?:[^)]+\))\?/g;
-  var namedParam    = /(\(\?)?:\w+/g;
-  var splatParam    = /\*\w+/g;
-  var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#]/g;
-  var annyangCommandPhraseToRegExp = function(command) {
-    command = command.replace(escapeRegExp, '\\$&')
-                  .replace(optionalParam, '(?:$1)?')
-                  .replace(namedParam, function(match, optional) {
-                    return optional ? match : '([^\\s]+)';
-                  })
-                  .replace(splatParam, '(.*?)')
-                  .replace(optionalRegex, '\\s*$1?\\s*');
-    return new RegExp('^' + command + '$', 'i');
-  };
   var regExpToAnnyangCommand = function(regexp) {
     return function(commandText) {
       var result = regexp.exec(commandText);
@@ -118,35 +102,10 @@
   root.annyang = {
 
     /**
-     * Initialize annyang with a list of commands to recognize.
-     *
-     * #### Examples:
-     * ````javascript
-     * var commands = {'hello :name': helloFunction};
-     * var commands2 = {'hi': helloFunction};
-     *
-     * // initialize annyang, overwriting any previously added commands
-     * annyang.init(commands, true);
-     * // adds an additional command without removing the previous commands
-     * annyang.init(commands2, false);
-     * ````
-     * As of v1.1.0 it is no longer required to call init(). Just start() listening whenever you want, and addCommands() whenever, and as often as you like.
-     *
-     * @param {Object} commands - Commands that annyang should listen to
-     * @param {Boolean} [resetCommands=true] - Remove all commands before initializing?
-     * @method init
-     * @deprecated
-     * @see [Commands Object](#commands-object)
+     * Initialize annyang. Implicitly called by start(),
+     * so you probably don't need to call this explicitly.
      */
-    init: function(commands, resetCommands) {
-
-      // resetCommands defaults to true
-      if (resetCommands === undefined) {
-        resetCommands = true;
-      } else {
-        resetCommands = !!resetCommands;
-      }
-
+    init: function() {
       // Abort previous instances of recognition already running
       if (recognition && recognition.abort) {
         recognition.abort();
@@ -250,14 +209,6 @@
         invokeCallbacks(callbacks.resultNoMatch, results);
         return false;
       };
-
-      // build commands list
-      if (resetCommands) {
-        commandsList = [];
-      }
-      if (commands.length) {
-        this.addCommands(commands);
-      }
     },
 
     /**
@@ -364,44 +315,6 @@
       recognition.lang = language;
     },
 
-    /**
-     * Add commands that annyang will respond to. Similar in syntax to init(), but doesn't remove existing commands.
-     *
-     * #### Examples:
-     * ````javascript
-     * var commands = {'hello :name': helloFunction, 'howdy': helloFunction};
-     * var commands2 = {'hi': helloFunction};
-     *
-     * annyang.addCommands(commands);
-     * annyang.addCommands(commands2);
-     * // annyang will now listen to all three commands
-     * ````
-     *
-     * @param {Object} commands - Commands that annyang should listen to
-     * @method addCommands
-     * @see [Commands Object](#commands-object)
-     */
-    addCommands: function(commands) {
-      initIfNeeded();
-
-      for (var phrase in commands) {
-        if (commands.hasOwnProperty(phrase)) {
-          var cb = root[commands[phrase]] || commands[phrase];
-          if (typeof cb === 'function') {
-            // convert command to regex then register the command
-            registerCommand(regExpToAnnyangCommand(annyangCommandPhraseToRegExp(phrase)), cb, phrase);
-          } else if (typeof cb === 'object' && cb.regexp instanceof RegExp) {
-            // register the command
-            registerCommand(regExpToAnnyangCommand(new RegExp(cb.regexp.source, 'i')), cb.callback, phrase);
-          } else {
-            if (debugState) {
-              root.console.log('Can not register command: %c'+phrase, debugStyle);
-            }
-            continue;
-          }
-        }
-      }
-    },
     registerCommand: registerCommand,
 
     /**
