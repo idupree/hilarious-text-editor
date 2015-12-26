@@ -217,16 +217,29 @@ function add_command(regex_or_str, fn) {
   added_commands[name] = true;
   if(_.isRegExp(regex_or_str)) {
     var regexp = regex_or_str;
-    annyang.registerCommand(name, function(str, debug) {
-      var result = regexp.exec(str);
-      if(result) {
-        var parameters = result.slice(1);
-        if(debug) { console.log('regex:', parameters); }
-        return function(){ fn.apply(null, parameters); };
-      } else {
-        return null;
-      }
-    });
+    var matchObj = regexp.xregexp && /n/.test(regexp.xregexp.flags);
+    if(matchObj) {
+      annyang.registerCommand(name, function(str, debug) {
+        var match = XRegExp.exec(str, regexp);
+        if(match) {
+          if(debug) { console.log('regex:', match); }
+          return function() { fn(match); };
+        } else {
+          return null;
+        }
+      });
+    } else {
+      annyang.registerCommand(name, function(str, debug) {
+        var result = regexp.exec(str);
+        if(result) {
+          var parameters = result.slice(1);
+          if(debug) { console.log('regex:', parameters); }
+          return function(){ fn.apply(null, parameters); };
+        } else {
+          return null;
+        }
+      });
+    }
   } else {
     added_literal_commands[name] = fn;
   }
