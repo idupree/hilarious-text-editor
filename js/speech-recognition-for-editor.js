@@ -126,21 +126,18 @@ function artificially_type(text) {
 }
 var added_commands = {};
 var added_literal_commands = {};
-// this depends on a patched annyang that exposes registerCommand
-// also maybe I should hack around its trimming: done
-// also TODO case-fold rather than lowercase
+// TODO case-fold rather than lowercase
 annyang.debug();
-annyang.registerCommand({
-    exec: function(str) {
+annyang.registerCommand('(literal match)', function(str, debug) {
       var normalizedstr = str.trim().toLowerCase();
       var matchfunc = added_literal_commands[normalizedstr];
-      return (matchfunc ? [null, normalizedstr, matchfunc] : null);
-    }},
-    function(normalizedstr, matchfunc) {
-      matchfunc(normalizedstr);
-    },
-    '(literal match)'
-    );
+      if(matchfunc) {
+        if(debug) { console.log('literal:', normalizedstr); }
+        return function(){matchfunc(normalizedstr);};
+      } else {
+        return null;
+      }
+    });
 function showCodePoint(codepointNumber) {
   var s = codepointNumber.toString(16).toUpperCase();
   if(s.length < 4) {
@@ -180,23 +177,24 @@ function search_for_unicode_characters(searched) {
       }
       return num_found !== 0;
 }
-annyang.registerCommand({
-  exec: function(str) {
+annyang.registerCommand('unicode <unicode-character-name>', function(str, debug) {
     var match = /^unicode (.*)$/i.exec(str);
     if(!match) { return false; }
     var possible_name = match[1].toUpperCase();
-    if(!_.has(unicode_names_map, possible_name)) {
+    if(_.has(unicode_names_map, possible_name)) {
+      var character = unicode_names_map[possible_name];
+      if(debug) { console.log('found unichar', possible_name, character); }
+      return function() { artificially_type(character); };
+    } else {
        var any_found = search_for_unicode_characters(possible_name);
-       return (any_found ? [null, possible_name, null] : null);
+       if(any_found) {
+         if(debug) { console.log('guesses listed for', possible_name); }
+         return function() {};
+       } else {
+         return null;
+       }
     }
-    return [null, possible_name, unicode_names_map[possible_name]];
-  }},
-  function(name, character) {
-    if(character != null) {
-      artificially_type(character);
-    }
-  },
-  'unicode <unicode-character-name>');
+  });
       
 function add_command(regex_or_str, fn) {
   var name = regex_or_str;
@@ -220,7 +218,17 @@ function add_command(regex_or_str, fn) {
     //  regexp: adjustedRegex,
     //  callback: fn
     //};
-    annyang.registerCommand(regex_or_str, fn, name);
+    var regexp = regex_or_str;
+    annyang.registerCommand(name, function(str, debug) {
+      var result = regexp.exec(str);
+      if(result) {
+        var parameters = result.slice(1);
+        if(debug) { console.log('regex:', parameters); }
+        return function(){ fn.apply(null, parameters); };
+      } else {
+        return null;
+      }
+    });
   } else {
     // TODO use/put in a look up table instead for speed
     // I suppose I could examine regex source to see if I can turn regex into plain...
