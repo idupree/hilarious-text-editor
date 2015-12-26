@@ -1,6 +1,6 @@
 //! annyang
-//! version : 2.0.0
-//! author  : Tal Ater @TalAter
+//! version : 2.0.0 + idupree changes
+//! author  : Tal Ater @TalAter + Isaac Dupree changes
 //! license : MIT
 //! https://www.TalAter.com/annyang/
 
