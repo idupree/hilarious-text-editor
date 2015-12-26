@@ -195,7 +195,15 @@ annyang.registerCommand('unicode <unicode-character-name>', function(str, debug)
        }
     }
   });
-      
+
+
+// brainstorm idea: examing regex source to see if I can turn regex into
+// a small number of string matches:
+// regex with just parens (even capturing ones) and | and ?, which
+// is a lot of them, can be broken up into, say, half a dozen individual
+// strings, which is way better from look-up-table point of view.
+
+
 function add_command(regex_or_str, fn) {
   var name = regex_or_str;
   if(_.isRegExp(regex_or_str)) {
@@ -207,17 +215,7 @@ function add_command(regex_or_str, fn) {
   }
   console.assert(!_.has(added_commands, name));
   added_commands[name] = true;
-  //var cmds = {};
   if(_.isRegExp(regex_or_str)) {
-    /*var adjustedRegex = new RegExp('^' +
-      regex_or_str.source
-        .replace(/{number}/g, '(?:(?:-|negative|minus|dash|hyphen)? ?[0-9]+|a|one|two|to|too|three|for|four|completely|every|infinit[yei]|all)')
-        .replace(/{through}/g, '(?:-|to|two|too|2|through|thru)')
-      + '$', 'i');*/
-    //cmds[name] = {
-    //  regexp: adjustedRegex,
-    //  callback: fn
-    //};
     var regexp = regex_or_str;
     annyang.registerCommand(name, function(str, debug) {
       var result = regexp.exec(str);
@@ -230,15 +228,8 @@ function add_command(regex_or_str, fn) {
       }
     });
   } else {
-    // TODO use/put in a look up table instead for speed
-    // I suppose I could examine regex source to see if I can turn regex into plain...
-    // also regex with just parens (even capturing ones) and | and ?, which
-    // is a lot of them, can be broken up into say half a dozen individual
-    // strings, which is way better from look-up-table point of view
-    //cmds[name] = fn;
     added_literal_commands[name] = fn;
   }
-  //annyang.addCommands(cmds);
 }
 /*
 bililiteRange.bounds.EOF = function() {
@@ -478,70 +469,6 @@ bililiteRange.bounds.BOF = function(){
     // [presumably, searches should be insensitive to capitalization and
     // words being separated by (_|-| |) at least]
     // that | the previous (identifier | phrase | utterance)
-  var positions =
-    // first/second/third/....fifty-second/....?
-    number = "((-|−|negative|minus|dash|hyphen)? ?[0-9]+|a|one|two|to|too|three|for|four|infinit[yei]|every|all)"
-    through = "(-|to|two|too|2|through|thru)"
-    dollars = "((\$|dollars?) ?(sign)?)"
-    // vim "help *" calls identifiers "keywords"
-    unit = "(letters?|characters?|identifiers?|keywords?|tokens?|symbols?|words?|lines?|rows?)"
-    // TODO make the user of paren be able to disambiguate which nearest parenthesis was meant
-    // by which word was used
-    paren = "(parenthesis|parentheses|brackets?|braces?|quotes?|quotation( mark)?s?)"
-    //"(?<relativeUpDownDirection>down|up)(?<relativeUpDown> {number})?(:? lines?)?"
-    //"lines? (?:from )?({number}|begins?|starts?) {through} ({number}|end|(?:(?:\$|dollars?) ?(?:sign)?))"
-    // zero-width referent only:
-    // (hmm does it want us to try to match the current selection indentedness, or go to begin?end?)
-    "(?<upDownDirection>down|up)(?<relativeUpDown> {number})?( (lines?|rows?))?"
-    // may include selections with positive sizes:
-    "(row |line |9:)?(?<lineNumber>{number})"
-    // almost definitely a positive size:
-    "(lines?|rows?) (from )?(?<fromLine>{number}|begins?|starts?) {through} (?<toLine>{number}|end|{dollars})"
-    "(?<selection>(the )?selection|this)"
-    "(?<recentarea>that)"
-    // "the [current] character" doesn't make a lot of sense
-    // but i guess it's alright
-    // also "delete the three letters"... does that fail if
-    // there are a different number of them selected? or what?
-    // maybe you can only use numbers for forward/back.
-    // how about "the words here"
-    "the (current |present )?(?<unitHere>{unit})( here)?"
-    "the (?<forwardBackDirection>next|last|previous|prior)(" +
-      "(?<relativeMovementAmount> {number})? (?<relativeMovementUnit>{unit})|" +
-      // this / the selected ___? / the selection?? / copy of line 13???
-      // that's: a little too obscure a use to go to much effort for,
-      // unless someone wants it.
-      // All this should be omittable if the user just did a search,
-      // in order to repeat the same settings, though I'm not sure
-      // whether that should be a sub-case of this or a separately
-      // listed syntax. (And, the state should be shown in a corner.)
-      //
-      // What about "whole word" vs. not, ignorecase, settings? (If ignoring those
-      // settings, then the selection will then make even a 'characters' unit work..)
-      //
-      // with "select the next", I'm worried about that accidentally being done
-      // by users whose last word got swallowed ("select the next word") so limiting
-      // that a bit by (?= .), hm.
-      "(?= .)( (one|1|copy))?( of ((this|the selection)|(this|the selected) (?<searchForTheSelectedUnit>{unit})))?|" + // unit defaults to identifier? vim "*"/"#".
-      " ((literal|verbatim|dictate|search|find) )?(?<words>.*))"
-    // vim "*"?
-    // Note that matching paren ideally pays some attention to tokens.
-    // Parens in quotes or comments, and/or backslashed (watch out
-    // for backslashed quotes too), might be different.  For now
-    // don't tokenise for parens.  For matching quote, how does
-    // it know which? I could change to "the previous quote"/"the
-    // previous unbackslashed quote"; also what about ''' like python
-    // Matching comment - eh.
-    "the matching {paren}" // vim "%"
-    // the third enclosing paren? hmm. enclosing|outer?
-    "the enclosing {paren}"
-    // the indentation of [selector]? or is that too hard.
-    // "go to after the indentation of line 47"
-    "the indentation"
-    // the other part of the line might be called "the content"
-    // but that name isn't as clear and I also don't know why you want
-    // to select it (copying, maybe -- in which case you don't want
-    // the trailing whitespace either)
 */
   add_command(XRegExp("^(?:go|move) (down|up)( {number})?(:? lines?)?$", 'i'),
     function(dir, count) {
@@ -561,20 +488,6 @@ bililiteRange.bounds.BOF = function(){
   add_command(/^page ?up$/i, function() {
     hilarious.page_updown(false);
   });
-  add_command(/^select lines? (?:from )?([0-9]+|begins?|starts?) (?:-|to|two|too|2|through|thru) ([0-9]+|end|(?:(?:\$|dollars?) ?(?:sign)?))/,
-    function(beginline, endline) {
-      if(/^(?:begin|start)/.test(beginline)) {
-        beginline = 1;
-      }
-      var end;
-      if(/^(?:end|\$|dollar)/.test(endline)) {
-        end = bililiteRange(editedElement()).bounds('all').bounds('endbounds');
-      } else {
-        end = bililiteRange(editedElement()).line(endline).bounds('line');
-      }
-      bililiteRange(editedElement()
-        ).line(beginline).bounds('line').expandToInclude(end).select();
-    });
   //delete the last N ___s
 //  add_command(/select (?:from (.*) (?:to|two|too|2) (.*))/,
 //  add_command('spell *characters', function(chars) {
@@ -641,6 +554,86 @@ bililiteRange.bounds.BOF = function(){
   // "no command that"
   // "no cap that" / "decapitalize that" / "camelcase that" /
   // "that's not a command"
+  /*
+  var positions =
+    // first/second/third/....fifty-second/....?
+    number = "((-|−|negative|minus|dash|hyphen)? ?[0-9]+|a|one|two|to|too|three|for|four|infinit[yei]|every|all)"
+    through = "(-|to|two|too|2|through|thru)"
+    dollars = "((\$|dollars?) ?(sign)?)"
+    // vim "help *" calls identifiers "keywords"
+    unit = "(letters?|characters?|identifiers?|keywords?|tokens?|symbols?|words?|lines?|rows?)"
+    // TODO make the user of paren be able to disambiguate which nearest parenthesis was meant
+    // by which word was used
+    paren = "(parenthesis|parentheses|brackets?|braces?|quotes?|quotation( mark)?s?)"
+    //"(?<relativeUpDownDirection>down|up)(?<relativeUpDown> {number})?(:? lines?)?"
+    //"lines? (?:from )?({number}|begins?|starts?) {through} ({number}|end|(?:(?:\$|dollars?) ?(?:sign)?))"
+    // zero-width referent only:
+    // (hmm does it want us to try to match the current selection indentedness, or go to begin?end?)
+    "(?<upDownDirection>down|up)(?<relativeUpDown> {number})?( (lines?|rows?))?"
+    // may include selections with positive sizes:
+    "(row |line |9:)?(?<lineNumber>{number})"
+    // almost definitely a positive size:
+    "(lines?|rows?) (from )?(?<fromLine>{number}|begins?|starts?) {through} (?<toLine>{number}|end|{dollars})"
+    "(?<selection>(the )?selection|this)"
+    "(?<recentarea>that)"
+    // "the [current] character" doesn't make a lot of sense
+    // but i guess it's alright
+    // also "delete the three letters"... does that fail if
+    // there are a different number of them selected? or what?
+    // maybe you can only use numbers for forward/back.
+    // how about "the words here"
+    "the (current |present )?(?<unitHere>{unit})( here)?"
+    "the (?<forwardBackDirection>next|last|previous|prior)(" +
+      "(?<relativeMovementAmount> {number})? (?<relativeMovementUnit>{unit})|" +
+      // this / the selected ___? / the selection?? / copy of line 13???
+      // that's: a little too obscure a use to go to much effort for,
+      // unless someone wants it.
+      // All this should be omittable if the user just did a search,
+      // in order to repeat the same settings, though I'm not sure
+      // whether that should be a sub-case of this or a separately
+      // listed syntax. (And, the state should be shown in a corner.)
+      //
+      // What about "whole word" vs. not, ignorecase, settings? (If ignoring those
+      // settings, then the selection will then make even a 'characters' unit work..)
+      //
+      // with "select the next", I'm worried about that accidentally being done
+      // by users whose last word got swallowed ("select the next word") so limiting
+      // that a bit by (?= .), hm.
+      "(?= .)( (one|1|copy))?( of ((this|the selection)|(this|the selected) (?<searchForTheSelectedUnit>{unit})))?|" + // unit defaults to identifier? vim "*"/"#".
+      " ((literal|verbatim|dictate|search|find) )?(?<words>.*))"
+    // vim "*"?
+    // Note that matching paren ideally pays some attention to tokens.
+    // Parens in quotes or comments, and/or backslashed (watch out
+    // for backslashed quotes too), might be different.  For now
+    // don't tokenise for parens.  For matching quote, how does
+    // it know which? I could change to "the previous quote"/"the
+    // previous unbackslashed quote"; also what about ''' like python
+    // Matching comment - eh.
+    "the matching {paren}" // vim "%"
+    // the third enclosing paren? hmm. enclosing|outer?
+    "the enclosing {paren}"
+    // the indentation of [selector]? or is that too hard.
+    // "go to after the indentation of line 47"
+    "the indentation"
+    // the other part of the line might be called "the content"
+    // but that name isn't as clear and I also don't know why you want
+    // to select it (copying, maybe -- in which case you don't want
+    // the trailing whitespace either)
+    */
+  add_command(/^select lines? (?:from )?([0-9]+|begins?|starts?) (?:-|to|two|too|2|through|thru) ([0-9]+|end|(?:(?:\$|dollars?) ?(?:sign)?))/,
+    function(beginline, endline) {
+      if(/^(?:begin|start)/.test(beginline)) {
+        beginline = 1;
+      }
+      var end;
+      if(/^(?:end|\$|dollar)/.test(endline)) {
+        end = bililiteRange(editedElement()).bounds('all').bounds('endbounds');
+      } else {
+        end = bililiteRange(editedElement()).line(endline).bounds('line');
+      }
+      bililiteRange(editedElement()
+        ).line(beginline).bounds('line').expandToInclude(end).select();
+    });
   add_command(
     XRegExp('^(select|select through|delete|) the (next|last|previous)(?: ({number}))? (characters?|words?|lines?)$', 'i'),
       function(action, dir, count, type) {
@@ -723,7 +716,6 @@ bililiteRange.bounds.BOF = function(){
       hilarious.askUserToOpenEditableDirectory(false);
     });
   }
-  //annyang.addCommands(commands);
   annyang.setLanguage('en-US');
   annyang.addCallback('result', function(texts) {
     window.txts = texts;
