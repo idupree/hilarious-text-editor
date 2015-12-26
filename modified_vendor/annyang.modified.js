@@ -49,7 +49,7 @@
   var namedParam    = /(\(\?)?:\w+/g;
   var splatParam    = /\*\w+/g;
   var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#]/g;
-  var commandToRegExp = function(command) {
+  var annyangCommandPhraseToRegExp = function(command) {
     command = command.replace(escapeRegExp, '\\$&')
                   .replace(optionalParam, '(?:$1)?')
                   .replace(namedParam, function(match, optional) {
@@ -58,6 +58,12 @@
                   .replace(splatParam, '(.*?)')
                   .replace(optionalRegex, '\\s*$1?\\s*');
     return new RegExp('^' + command + '$', 'i');
+  };
+  var regExpToAnnyangCommand = function(regexp) {
+    return function(commandText) {
+      var result = regexp.exec(commandText);
+      return (result ? result.slice(1) : null);
+    }
   };
 
   // This method receives an array of callbacks to iterate over, and invokes each of them
@@ -91,9 +97,8 @@
     }
     // try and match recognized text to one of the commands on the list
     for (var j = 0, l = commandsList.length; j < l; j++) {
-      var result = commandsList[j].command.exec(commandText);
-      if (result) {
-        var parameters = result.slice(1);
+      var parameters = commandsList[j].command(commandText);
+      if (parameters) {
         if (debugState) {
           root.console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
           if (parameters.length) {
@@ -377,19 +382,17 @@
      * @see [Commands Object](#commands-object)
      */
     addCommands: function(commands) {
-      var cb;
-
       initIfNeeded();
 
       for (var phrase in commands) {
         if (commands.hasOwnProperty(phrase)) {
-          cb = root[commands[phrase]] || commands[phrase];
+          var cb = root[commands[phrase]] || commands[phrase];
           if (typeof cb === 'function') {
             // convert command to regex then register the command
-            registerCommand(commandToRegExp(phrase), cb, phrase);
+            registerCommand(regExpToAnnyangCommand(annyangCommandPhraseToRegExp(phrase)), cb, phrase);
           } else if (typeof cb === 'object' && cb.regexp instanceof RegExp) {
             // register the command
-            registerCommand(new RegExp(cb.regexp.source, 'i'), cb.callback, phrase);
+            registerCommand(regExpToAnnyangCommand(new RegExp(cb.regexp.source, 'i')), cb.callback, phrase);
           } else {
             if (debugState) {
               root.console.log('Can not register command: %c'+phrase, debugStyle);
