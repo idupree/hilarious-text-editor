@@ -483,12 +483,12 @@ bililiteRange.bounds.BOF = function(){
     // words being separated by (_|-| |) at least]
     // that | the previous (identifier | phrase | utterance)
 */
-  add_command(XRegExp("^(?:go|move) (down|up)( {number})?(:? lines?)?$", 'i'),
-    function(dir, count) {
-      count = parse_spoken_count(count);
+  add_command(XRegExp("^(go|move) (?<dir>down|up)(?<count> {number})?( lines?)?$", 'in'),
+    function(match) {
+      var count = parse_spoken_count(match.count);
       var el = editedElement();
       var currentLine = bililiteRange(el).bounds('selection').line();
-      var targetLine = ((dir === 'down') ?
+      var targetLine = ((match.dir === 'down') ?
                           (currentLine + count) :
                           (currentLine - count));
                           console.log(targetLine);
