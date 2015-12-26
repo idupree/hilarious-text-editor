@@ -12,6 +12,9 @@ html,body {
   font-size: 11px;
   line-height: 1;
   white-space: nowrap;
+  /* Chrome Apps set overflow-y:hidden; on html,body so we have to
+  override that */
+  overflow-y: visible;
 }
 
 #bar, #linenos, #textarea_container, #textarea_container > textarea {
