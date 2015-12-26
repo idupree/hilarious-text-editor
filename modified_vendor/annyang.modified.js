@@ -43,13 +43,6 @@
   var debugStyle = 'font-weight: bold; color: #00f;';
   var pauseListening = false;
 
-  var regExpToAnnyangCommand = function(regexp) {
-    return function(commandText) {
-      var result = regexp.exec(commandText);
-      return (result ? result.slice(1) : null);
-    }
-  };
-
   // This method receives an array of callbacks to iterate over, and invokes each of them
   var invokeCallbacks = function(callbacks) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -68,8 +61,15 @@
     return recognition !== undefined;
   };
 
-  var registerCommand = function(command, cb, phrase) {
-    commandsList.push({ command: command, callback: cb, originalPhrase: phrase });
+  // 'command' returns null for no match, or returns
+  // a nullary function to call for the effect, if there
+  // was a match.
+  //
+  // 'phrase' is used as a human-readable(ish) description
+  // of the pattern matched, and/or as an identity for
+  // removing the command if requested by removeCommands().
+  var registerCommand = function(phrase, command) {
+    commandsList.push({ command: command, originalPhrase: phrase });
     if (debugState) {
       root.console.log('Command successfully loaded: %c'+phrase, debugStyle);
     }
@@ -81,16 +81,16 @@
     }
     // try and match recognized text to one of the commands on the list
     for (var j = 0, l = commandsList.length; j < l; j++) {
-      var parameters = commandsList[j].command(commandText);
-      if (parameters) {
+      var cb = commandsList[j].command(commandText, debugState);
+      if (cb) {
         if (debugState) {
           root.console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
-          if (parameters.length) {
-            root.console.log('with parameters', parameters);
-          }
+          //if (parameters.length) {
+          //  root.console.log('with parameters', parameters);
+          //}
         }
         // execute the matched command
-        commandsList[j].callback.apply(this, parameters);
+        cb();
         invokeCallbacks(callbacks.resultMatch, commandText,
           commandsList[j].originalPhrase, possibleResults);
         return true;
