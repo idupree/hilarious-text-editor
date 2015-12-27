@@ -28,6 +28,14 @@ XRegExp.addToken(
   function() {return '(?:-|to|two|too|2|through|thru)';},
   {leadChar: '{'}
 );
+// Require there is space separating words here,
+// but don't require two spaces for "{ }{ }" or any spaces for "{ }"
+// at beginning/end of match.
+XRegExp.addToken(
+  /{ }/,
+  function() {return '(?=(?: |^|$)) *';},
+  {leadChar: '{'}
+);
 
 // Use with the custom XRegExp token "{number}".
 function parse_spoken_count(count) {
@@ -483,7 +491,7 @@ bililiteRange.bounds.BOF = function(){
     // words being separated by (_|-| |) at least]
     // that | the previous (identifier | phrase | utterance)
 */
-  add_command(XRegExp("^(go|move) (?<dir>down|up)(?<count> {number})?( lines?)?$", 'in'),
+  add_command(XRegExp("^(go|move){ }(?<dir>down|up){ }(?<count>{number})?{ }(lines?)?$", 'in'),
     function(match) {
       var count = parse_spoken_count(match.count);
       var el = editedElement();
