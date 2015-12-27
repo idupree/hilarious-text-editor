@@ -665,9 +665,15 @@ bililiteRange.bounds.BOF = function(){
   add_command(
     XRegExp(
       // delete through? or is that too dangerous
+      // select through before ____? select after ___ to mean insert after ___?
+      // maybe: hints to the user when they say something that's almost clear?
 
-      '^(?<action>select|select through|delete|delete through){ }(' +
-        "the (?<forwardBackDirection>next|last|previous|prior){ }" +
+      '^(?<action>select|select (through|thru)|delete|delete (through|thru)|' +
+        '(?<moveAction>(go|move) ?({through})?|((go|move) ?({through})?|insert) (?<moveActionSide>before|after|past))' +
+        '){ }(' +
+
+//        "(the)?{ }(?<forwardBackDirection>next|last|previous|prior|forwards?|back|backwards?|down|up){ }" +
+        "(the)?{ }((?<forwards>next|forwards?|down)|(?<backwards>last|previous|prior|back|backwards?|up)){ }" +
           "(?<relativeMovementAmount>{number})?{ }(?<relativeMovementUnit>{unit})|" +
       ')$', 'in'),
 
@@ -675,12 +681,24 @@ bililiteRange.bounds.BOF = function(){
       //'the (next|last|previous)(?: ({number}))? (characters?|words?|lines?)$', 'in'),
       //function(action, dir, count, type) {
       function(match) {
-        var action = match.action, dir = match.forwardBackDirection, count = parse_spoken_count(match.count), type = match.relativeMovementUnit;
+        // would it be useful to log these deductions?
+        var action = match.action;
+        var count = parse_spoken_count(match.count);
+        var unit = match.relativeMovementUnit;
         var isSelect = /^select\b/.test(action);
         var isDelete = /^delete\b/.test(action);
-        var isThrough = /\bthrough$/.test(action);
+        var isMove = /^go|move|insert/.test(action);
+        var isThrough = !isMove && /\b(through|thru)$/.test(action);
+        // search direction:
+        var backwards = ((match.backwards || match.forwards) ? match.backwards :
+                          match.moveActionSide === 'before');
+        // is this the right default? does it depend on action,
+        // e.g. "insert before the next two characters" uh doesn't actually
+        // make a whole lot of usefulness but "insert before the next phrase foobar"
+        // could, or "move to the next phrase foobar".
+        var moveToSide = match.moveActionSide || 'past';
+
         var initialSelection = bililiteRange(editedElement()).bounds('selection');
-        var backwards = (dir !== 'next');
         if(count < 0) {
           //count = -count;
           //backwards = !backwards;
@@ -700,12 +718,12 @@ bililiteRange.bounds.BOF = function(){
         // any lookahead assertions that are affected.
         //var rest_of_file_re = (backwards ? /^[\S\s]*/ : /[\S\s]*$/);
         if(count !== Infinity) {
-          if(/^character/.test(type)) {
+          if(/^character/.test(unit)) {
             base_re = /[\S\s]/.source;
-          } else if(/^word/.test(type)) {
+          } else if(/^word/.test(unit)) {
             console.log("TODO improve word-based selection");
             base_re = /(?:[\s,]*(?:\b[a-zA-Z']+\b|.)[\s,]*)/.source;
-          } else if(/^line/.test(type)) {
+          } else if(/^line/.test(unit)) {
             base_re = /(?:^[^\n]*\n)/.source;
             re_flags = 'm';
           }
@@ -713,14 +731,14 @@ bililiteRange.bounds.BOF = function(){
         }
         var range = bililiteRange(editedElement()).bounds('selection'
           ).bounds(backwards ? 'startbounds' : 'endbounds');
-        if(/^word/.test(type)) {
+        if(/^word/.test(unit)) {
           //var prevrange = range.clone();
           var prevchar = range.bounds()[0] + (backwards ? 1 : -1);
           range.bounds([prevchar, prevchar]).find(/(?![a-zA-Z'])/);
           if(!range.match) {
             range.bounds(backwards ? 'start' : 'end');
           }
-        } else if(/^line/.test(type)) {
+        } else if(/^line/.test(unit)) {
           range.bounds(backwards ? 'BOL' : 'EOL');
         }
         if(count !== Infinity) {
@@ -735,6 +753,22 @@ bililiteRange.bounds.BOF = function(){
         }
         if(isThrough) {
           range.expandToInclude(initialSelection);
+        }
+        if(isMove) {
+          if(moveToSide === 'before') {
+            range.bounds('startbounds');
+          } else if(moveToSide === 'after') {
+            range.bounds('endbounds');
+          } else if(moveToSide === 'past') {
+            if(range.bounds()[1] < initialSelection.bounds()[1] ||
+              (range.bounds()[1] === initialSelection.bounds()[1] &&
+               range.bounds()[0] < initialSelection.bounds()[0])
+            ) {
+              range.bounds('startbounds');
+            } else {
+              range.bounds('endbounds');
+            }
+          }
         }
         if(isDelete) {
           range.text('', 'end');
