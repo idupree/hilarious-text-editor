@@ -526,9 +526,10 @@ bililiteRange.bounds.BOF = function(){
   // "dedent (completely|infinite|infinity|all)"
   add_command(
     // /^(indent|dedent|didn't|de? ?indent|unindent)s?(?= )(?: block)?(?: ({number}))?(?: (spaces?|tabs? ?(?:stops?|steps?|tabs?)))?$/i
-    XRegExp("^(indent|dedent|didn't|de? ?indent|unindent)s?(?= )(?: block)?(?: ({number}))?(?: (spaces?|tabs? ?(?:stops?|steps?|tabs?)))?$", 'i'),
-      function(type, count, unit) {
-        count = parse_spoken_count(count);
+    XRegExp("^(?<type>indent|dedent|didn't|de? ?indent|unindent)s?{ }(block)?{ }(?<count>{number})?{ }(?<unit>spaces?|tabs? ?(stops?|steps?|tabs?))?$", 'in'),
+      function(match) {
+        var count = parse_spoken_count(match.count);
+        var unit = match.unit;
         if(unit == null) {
           unit = 'tabstops';
         }
@@ -537,16 +538,17 @@ bililiteRange.bounds.BOF = function(){
         } else if(/^tab/.test(unit)) {
           unit = 'tabstops';
         }
-        if(/^indent/.test(type)) {
-          type = 'indent';
-        } else {
+        if(!/^indent/.test(match.type)) {
           count = -count;
-          type = 'indent';
         }
         var range = bililiteRange(editedElement()).bounds('selection');
         if(count > 0) {
-          var tab = ((unit === 'spaces') ? ' ' : tab_spaces);
-          range.indent(tab.repeat(count)).select();
+          if(count > 1000) {
+            console.log("refusing to indent too much");
+          } else {
+            var tab = ((unit === 'spaces') ? ' ' : tab_spaces);
+            range.indent(tab.repeat(count)).select();
+          }
         } else if(count < 0) {
           var dentwidth = ((unit === 'spaces') ? 1 : num_tab_spaces);
           range.unindent(-count, dentwidth).select();
