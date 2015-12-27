@@ -683,7 +683,7 @@ bililiteRange.bounds.BOF = function(){
       function(match) {
         // would it be useful to log these deductions?
         var action = match.action;
-        var count = parse_spoken_count(match.count);
+        var count = parse_spoken_count(match.relativeMovementAmount);
         var unit = match.relativeMovementUnit;
         var isSelect = /^select\b/.test(action);
         var isDelete = /^delete\b/.test(action);
