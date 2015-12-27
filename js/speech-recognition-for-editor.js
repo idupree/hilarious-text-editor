@@ -138,7 +138,20 @@ var num_tab_spaces = 2;
 var tab_spaces = ' '.repeat(num_tab_spaces);
 // TODO figure out how to make this configurable w.r.t.
 // spaces appearing/disappearing around the added text:
-function artificially_type(text) {
+// Maybe:
+// lhs-tightness =
+//   one space | zero spaces | don't change (| two spaces, for end of sentence)
+// rhs-tightness = (similar)
+//
+// Should undoing the whitespace change come before, after or simultaneous
+// with the word change?
+//
+// For selection:
+// lhs-.... (this thought not complete and that is okay.)
+//
+//fullstop:
+//\S[.][quotemark that is different from the char preceding the .]?(  |[\t\r\n]|$)
+function artificially_type(text, lhs_tightness, rhs_tightness) {
   var el = editedElement();
   if(el === null || el.nodeName.toLowerCase() === 'body') {
     return;
@@ -147,7 +160,46 @@ function artificially_type(text) {
   if(text == '\n') {
     selection.insertEOL().select();
   } else {
-    selection.text(text, 'end').select();
+    var lhs_added_spaces = '';
+    if(lhs_tightness != null) {
+      if(lhs_tightness === '' &&
+          selection.all()[selection.bounds()[0] - 1] === ' ' &&
+          selection.all()[selection.bounds()[0] - 2] !== ' ') {
+        selection.bounds([selection.bounds()[0] - 1, selection.bounds()[1]]);
+      }
+      if(lhs_tightness === ' ' &&
+          selection.all()[selection.bounds()[0] - 1] !== ' ') {
+        lhs_added_spaces = lhs_tightness;
+      }
+    }
+    // hmm when rhs_tightness adds characters, where should
+    // the cursor go? is that specifiable as an argument to artificially_type, or?
+    //
+    // space at EOL? maybe a volatile space that disappears if you type more??
+    // maybe remember/infer something about the punctuation mark to "know"
+    // whether to add space later, unless "no space"____?
+    var rhs_added_spaces = '';
+    if(rhs_tightness != null) {
+      if(rhs_tightness === '' &&
+          selection.all()[selection.bounds()[1]] === ' ' &&
+          selection.all()[selection.bounds()[1] + 1] !== ' ') {
+        selection.bounds([selection.bounds()[0], selection.bounds()[1] + 1]);
+      }
+      if((rhs_tightness === ' ' || rhs_tightness === '  ') &&
+          selection.all()[selection.bounds()[1]] !== ' ') {
+        rhs_added_spaces = rhs_tightness;
+      }
+      if(rhs_tightness === '  ' &&
+          selection.all()[selection.bounds()[1]] === ' ' &&
+          selection.all()[selection.bounds()[1] + 1] !== ' ') {
+        rhs_added_spaces = ' ';
+      }
+    }
+    selection.text(lhs_added_spaces + text + rhs_added_spaces, 'all');
+    // optionally: record "that" location here
+    var b = selection.bounds();
+    selection.bounds([b[1] - rhs_added_spaces.length,
+                      b[1] - rhs_added_spaces.length]).select();
   }
 }
 var added_commands = {};
@@ -326,20 +378,20 @@ bililiteRange.bounds.BOF = function(){
   add_command('zulu', function() { artificially_type('z'); });
   add_command('underscore', function() { artificially_type('_'); });
   add_command('tilde', function() { artificially_type('~'); });
-  add_command('backtick', function() { artificially_type('`'); });
+  add_command(['backtick', 'back tick', 'backquote', 'back quote'], function() { artificially_type('`'); });
   var exclamationmark = ['exclamation mark', 'exclamation point', 'exclamation'];
-  add_command(exclamationmark, function() { artificially_type('!'); });
+  add_command(exclamationmark, function() { artificially_type('!', '', '  '); });
   add_command('bang', function() { artificially_type('!'); });
   // hmm is there any reason to pull out the full force of {number} here
   // vs. just "double bang"?
   add_command(['bang bang', 'double bang'], function() { artificially_type('!!'); });
   var questionmark = ['question mark', 'question point', 'question sign', 'question symbol', 'interrogation point', 'interrogation mark'];
-  add_command(questionmark, function() { artificially_type('?'); });
+  add_command(questionmark, function() { artificially_type('?', '', '  '); });
   add_command(['hook', 'hook sign', 'hook symbol'], function() { artificially_type('?'); });
-  add_command('interrobang', function() { artificially_type('‽'); });
-  add_command(_.map(exclamationmark, function(q) { return 'inverted ' + q; }), function() { artificially_type('¡'); });
-  add_command(_.map(questionmark, function(q) { return 'inverted ' + q; }), function() { artificially_type('¿'); });
-  add_command('inverted interrobang', function() { artificially_type('⸘'); });
+  add_command('interrobang', function() { artificially_type('‽', '', '  '); });
+  add_command(_.map(exclamationmark, function(q) { return 'inverted ' + q; }), function() { artificially_type('¡', ' ', ''); });
+  add_command(_.map(questionmark, function(q) { return 'inverted ' + q; }), function() { artificially_type('¿', ' ', ''); });
+  add_command('inverted interrobang', function() { artificially_type('⸘', ' ', ''); });
   add_command('at sign', function() { artificially_type('@'); });
   add_command(['hashtag', 'hash tag', 'hash sign', 'hash symbol', 'hash', 'hashtag symbol', 'hash tag symbol', 'number sign', 'octothorpe'], function() { artificially_type('#'); });
   add_command(['flat sign', 'music flat sign', 'musical flat sign'], function() { artificially_type('♭'); });
@@ -349,21 +401,30 @@ bililiteRange.bounds.BOF = function(){
   add_command(['pound sign'], function() { artificially_type('£'); });
   add_command(['yen sign'], function() { artificially_type('¥'); });
   add_command(['cent sign', 'cents sign'], function() { artificially_type('¢'); });
-  add_command('percent', function() { artificially_type('%'); });
+  add_command('percent', function() {
+    var sel = bililiteRange(editedElement()).bounds('selection');
+    var prechar = sel.all()[sel.bounds()[0] - 1];
+    var prechar2 = sel.all()[sel.bounds()[0] - 2];
+    var postchar = sel.all()[sel.bounds()[1]];
+    var tightness = (prechar === ' ' || postchar === ' ') ? ' ' : '';
+    var preRealerChar = (prechar === ' ' ? prechar2 : prechar);
+    var pre = (/[0-9]/.test(preRealerChar) ? '' : tightness);
+    artificially_type('%', pre, tightness);
+  });
     // speech recognition finds 'carrot' and 'carat' and stuff
     // before 'caret', so match 'carrot' instead of 'caret':
   add_command(['carrot', 'carat', 'caret', 'hat sign', 'hat symbol'], function() { artificially_type('^'); });
   add_command('ampersand', function() { artificially_type('&'); });
   add_command(['asterisk', 'star'], function() { artificially_type('*'); });
-  add_command(['times', 'multiply', 'multiplied by'], function() { artificially_type('*'); });// unicode version ×
-  add_command(['divide', 'divided by'], function() { artificially_type('/'); }); //unicode version ÷
-  add_command(['minus', 'subtract'], function() { artificially_type('-'); }); // unicode version − U+2212 MINUS SIGN
-  add_command(['period', 'full stop', 'fullstop'], function() { artificially_type('.'); });
+  add_command(['times', 'multiply', 'multiplied by'], function() { artificially_type('*', ' ', ' '); });// unicode version ×
+  add_command(['divide', 'divided by'], function() { artificially_type('/', ' ', ' '); }); //unicode version ÷
+  add_command(['minus', 'subtract'], function() { artificially_type('-', ' ', ' '); }); // unicode version − U+2212 MINUS SIGN
+  add_command(['period', 'full stop', 'fullstop'], function() { artificially_type('.', '', '  '); });
   add_command('dot', function() { artificially_type('.'); });
   add_command('dot dot', function() { artificially_type('..'); });
   add_command('dot dot dot', function() { artificially_type('...'); });
   add_command('dot dot dot dot', function() { artificially_type('....'); });
-  add_command('comma', function() { artificially_type(','); });
+  add_command('comma', function() { artificially_type(',', '', ' '); });
     // TODO: 'brackets' to type [] and put the cursor in the middle?
   add_command(/^(left|right) paren(thesis|theses)?$/i, function(lr) {
       artificially_type(lr === 'left' ? '(' : ')');
@@ -380,20 +441,22 @@ bililiteRange.bounds.BOF = function(){
     var count = parse_spoken_count(n);
     artificially_type('\\'.repeat(count));
   });
-  add_command(/^(less than( sign)?|left angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('<'); });
-  add_command(/^(greater than( sign)?|right angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('>'); });
-  add_command(/^greater( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('>='); });
-  add_command(/^less( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('<='); });
-  add_command(/^(less( than)? or equal(|s| to) or greater( than)?( sign)?|spaceship operator)$/i, function() { artificially_type('<=>'); });
-  add_command(/^(double equals?( sign)?|equals? equals?)$/i, function() { artificially_type('=='); });
-  add_command(/^((triple|treble) equals?( sign)?|equals? equals? equals?)$/i, function() { artificially_type('==='); });
+  add_command(/^(left angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('<'); });
+  add_command(/^(right angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('>'); });
+  add_command(/^less than( sign)?$/i, function() { artificially_type('<', ' ', ' '); });
+  add_command(/^greater than( sign)?$/i, function() { artificially_type('>', ' ', ' '); });
+  add_command(/^greater( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('>=', ' ', ' '); });
+  add_command(/^less( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('<=', ' ', ' '); });
+  add_command(/^(less( than)? or equal(|s| to) or greater( than)?( sign)?|spaceship operator)$/i, function() { artificially_type('<=>', ' ', ' '); });
+  add_command(/^(double equals?( sign)?|equals? equals?)$/i, function() { artificially_type('==', ' ', ' '); });
+  add_command(/^((triple|treble) equals?( sign)?|equals? equals? equals?)$/i, function() { artificially_type('===', ' ', ' '); });
     // hmm if I make a "not equals" command then is it != or the less common
     // ~= and /= ?.....
-  add_command(/^(exclamation( mark| point)?|bang) equals?( sign)?$/i, function() { artificially_type('!='); });
-  add_command(/^(exclamation( mark| point)?|bang) (double|triple|treble|equals?( sign)?) equals?( sign)?$/i, function() { artificially_type('!=='); });
-  add_command('colon', function() { artificially_type(':'); });
-  add_command(['double colon', 'colon colon', 'colons'], function() { artificially_type('::'); });
-  add_command('semicolon', function() { artificially_type(';'); });
+  add_command(/^(exclamation( mark| point)?|bang) equals?( sign)?$/i, function() { artificially_type('!=', ' ', ' '); });
+  add_command(/^(exclamation( mark| point)?|bang) (double|triple|treble|equals?( sign)?) equals?( sign)?$/i, function() { artificially_type('!==', ' ', ' '); });
+  add_command('colon', function() { artificially_type(':', '', ' '); });
+  add_command(['double colon', 'colon colon', 'colons'], function() { artificially_type('::', ' ', ' '); });
+  add_command('semicolon', function() { artificially_type(';', '', ' '); });
   add_command(/^(single (quote|quote mark|quotation mark)|apostrophe)$/i, function() { artificially_type('\''); });
   add_command(/double (quote|quote mark|quotation mark)/, function() { artificially_type('"'); });
   add_command(/^(left|right) single (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '‘' : '’'); });
@@ -412,7 +475,8 @@ bililiteRange.bounds.BOF = function(){
   add_command(/^double (left|right) angle( (brace|bracket|paren|quote|quotation( mark)?))?$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
   add_command(/^(?:(left|right) )?(?:(fat|thin) )?arrow$/i, function(lr, ft) {
     var ftChar = (ft === 'fat' ? '=' : '-');
-    artificially_type(lr === 'left' ? '<'+ftChar : ftChar+'>');
+    var arrow = (lr === 'left' ? '<'+ftChar : ftChar+'>');
+    artificially_type(arrow, ' ', ' ');
   });
     // hey Eli what is the prefix Dragon uses to say "don't treat the
     // following thing as a command"?  Also: What about replacing parts of a sequence?
@@ -1063,21 +1127,23 @@ var tests = [
 
   // question mark
   // https://english.stackexchange.com/questions/58014/is-there-an-alternative-one-word-name-for-the-question-mark
-  ['amet |consectetur', 'question mark', 'amet?| consectetur'],
-  ['amet |consectetur', 'question point', 'amet?| consectetur'],
-  ['amet |consectetur', 'question sign', 'amet?| consectetur'],
-  ['amet |consectetur', 'question symbol', 'amet?| consectetur'],
-  ['amet |consectetur', 'interrogation point', 'amet?| consectetur'],
-  ['amet |consectetur', 'interrogation mark', 'amet?| consectetur'],
+  ['amet |consectetur', 'question mark', 'amet?|  consectetur'],
+  ['amet |consectetur', 'question point', 'amet?|  consectetur'],
+  ['amet |consectetur', 'question sign', 'amet?|  consectetur'],
+  ['amet |consectetur', 'question symbol', 'amet?|  consectetur'],
+  ['amet |consectetur', 'interrogation point', 'amet?|  consectetur'],
+  ['amet |consectetur', 'interrogation mark', 'amet?|  consectetur'],
   // I guess "hook" will do for the programmer's "don't change the spaces" version??
   ['amet |consectetur', 'hook', 'amet ?|consectetur'],
   ['amet |consectetur', 'hook sign', 'amet ?|consectetur'],
 
   // other ? ! related symbols
-  ['amet |consectetur', 'interrobang', 'amet‽| consectetur'],
-  ['amet| consectetur', 'inverted exclamation mark', 'amet |¡consectetur'],
-  ['amet| consectetur', 'inverted question mark', 'amet |¿consectetur'],
-  ['amet| consectetur', 'inverted interrobang', 'amet |⸘consectetur'],
+  // TODO what are spacing conventions for the inverted ones?
+  // also does the cursor end up before or after them (probably after?)
+  ['amet |consectetur', 'interrobang', 'amet‽|  consectetur'],
+  ['amet| consectetur', 'inverted exclamation mark', 'amet ¡|consectetur'],
+  ['amet| consectetur', 'inverted question mark', 'amet ¿|consectetur'],
+  ['amet| consectetur', 'inverted interrobang', 'amet ⸘|consectetur'],
 
 
   // no idea about @ and spaces. I guess the main use is for
