@@ -150,7 +150,10 @@ var tab_spaces = ' '.repeat(num_tab_spaces);
 // lhs-.... (this thought not complete and that is okay.)
 //
 //fullstop:
-//\S[.][quotemark that is different from the char preceding the .]?(  |[\t\r\n]|$)
+//\S[.!?][quotemark that is different from the char preceding the .]?(  |[\t\r\n]|$)
+//quotemarks can include closing parentheses....
+//
+// also quote marks inside parentheses bunch together, etc...
 function artificially_type(text, lhs_tightness, rhs_tightness) {
   var el = editedElement();
   if(el === null || el.nodeName.toLowerCase() === 'body') {
@@ -441,8 +444,8 @@ bililiteRange.bounds.BOF = function(){
     var count = parse_spoken_count(n);
     artificially_type('\\'.repeat(count));
   });
-  add_command(/^(left angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('<'); });
-  add_command(/^(right angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('>'); });
+  //add_command(/^(left angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('<'); });
+  //add_command(/^(right angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('>'); });
   add_command(/^less than( sign)?$/i, function() { artificially_type('<', ' ', ' '); });
   add_command(/^greater than( sign)?$/i, function() { artificially_type('>', ' ', ' '); });
   add_command(/^greater( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('>=', ' ', ' '); });
@@ -457,10 +460,201 @@ bililiteRange.bounds.BOF = function(){
   add_command('colon', function() { artificially_type(':', '', ' '); });
   add_command(['double colon', 'colon colon', 'colons'], function() { artificially_type('::', ' ', ' '); });
   add_command('semicolon', function() { artificially_type(';', '', ' '); });
-  add_command(/^(single (quote|quote mark|quotation mark)|apostrophe)$/i, function() { artificially_type('\''); });
-  add_command(/double (quote|quote mark|quotation mark)/, function() { artificially_type('"'); });
-  add_command(/^(left|right) single (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '‘' : '’'); });
-  add_command(/^(left|right) double (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '“' : '”'); });
+
+  // Is this the right spacing? It's good for "it's", but so-so
+  // for "hens' teeth", "'tis", "The summer of '84".
+  // In theory it could use a dictionary to help decide...
+  add_command('apostrophe', function() { artificially_type("'", '', ''); }); // unicode version
+  add_command('prime symbol', function() { artificially_type("'", '', ' '); }); // unicode version U+2032 ′ prime
+  add_command('double prime symbol', function() { artificially_type("''", '', ' '); }); // unicode version U+2033 ″ double prime. Is non-unicode more often " or ''?
+  add_command(['arc minutes', 'arcminutes', 'arc minute', 'arcminute', 'foot symbol', 'feet symbol'], function() { artificially_type("′", '', ' '); }); // unicode/ascii version?
+  add_command(['arc seconds', 'arcseconds', 'arc second', 'arcsecond', 'inch symbol', 'inches symbol'], function() { artificially_type("″", '', ' '); }); // unicode/ascii version?
+
+  add_command(['degree symbol', 'degrees symbol', 'degree sign', 'degrees sign'], function() { artificially_type('°', '', ' '); }); // TODO degrees shouldn't have a trailing space when followed by a period or comma (or fahrenheit, hm)
+  add_command(['degree f', 'degrees f', 'degree fahrenheit', 'degrees fahrenheit'], function() { artificially_type('°F', '', ' '); }); 
+  // hmm is it bad to include "centigrade" if it also means
+  // a unit of angular measurement in some areas?
+  // https://en.wikipedia.org/wiki/Celsius#Centigrade_and_Celsius
+  add_command(['degree c', 'degrees c', 'degree celsius', 'degrees celsius', 'degree centigrade', 'degrees centigrade'], function() { artificially_type('°C', '', ' '); }); 
+  // There is no "degrees Kelvin" because Kelvin is just Kelvins, not "degrees Kelvin".
+  // Maybe TODO if the user says that then complain pedantically to them
+  // and/or produce "K"?
+
+  add_command(XRegExp('^(?<adjectives>((' +
+    'left[- ]pointing|right[- ]pointing|left|right|' +
+    'neutral|vertical|straight|typewriter|dumb|symmetric|' +
+    'typographic|curly|curved|book|directional|smart|' +
+    'low|lower|bottom|low[- ]9|upper|high|top|' +
+    'single|double|' +
+    // hmm, mathematical set closed=[/] open=(/),
+    // but opening/open=[( closing/close=)]
+    // Also what about when you want to type a pair of brackets/quotes
+    // and put your cursor in the middle?
+    'mathematical|maths|math|angle|angular|square|curly|flower|swirly|fancy|' +
+    'ascii|unicode|' +
+    'triple|treble) )*)' +
+    '(?<noun>quote|quote mark|quotation mark|guillemet|chevron|brace|bracket|paren|parenthesis|parentheses|angle|angle sign)$',
+    'in'), function(match) {
+    var adjectives = match.adjectives.replace(/ $/g, ''
+      ).replace(/left pointing/g, 'left-pointing'
+      ).replace(/right pointing/g, 'right-pointing'
+      ).replace(/low 9/g, 'low-9'
+      ).split(' ');
+    console.log('ADJ', match.adjectives, adjectives);
+    // ascii: ' " < > ''' """ << >> (does anyone use << and >> as brackets?)
+    // unicode:
+    // directional english quotes: “ ” ‘ ’
+    // some languages begin with low quotes instead: „ ‚
+    // guillemets: « » ‹ ›
+    // mathematical chevron: ⟨ ⟩ ⟪ ⟫
+    // other: there are others that are more obscure to me that we could add
+    var direction;
+    var height;
+    var doubledness;
+    var genre; // chr
+    var mathematical;
+    var asciiness; // force ascii, prefer fancy, or neither
+    var triple = false;
+    var maybeNotABracket = false;
+    if(match.noun === 'chevron') {
+      genre = 'chevron';
+    } else if(match.noun === 'guillemet') {
+      genre = 'guillemet';
+    } else if(match.noun === 'brace') {
+      genre = 'curly';
+    } else if(/^paren/.test(match.noun)) {
+      genre = 'paren';
+    } else if(/^angle/.test(match.noun)) {
+      genre = 'angle';
+      maybeNotABracket = true;
+    } else if(match.noun === 'bracket') {
+      // REGIONAL VARIATION
+      // but, there isn't another short way to say [], so?
+      genre = 'square';
+    }
+    // If there are contradictory adjectives, should I arbitrarily
+    // let one overwrite another, or go to more work to complain
+    // to the user and/or report false to the matcher?
+    // Should 'symmetric' override 'left' in either order, so that
+    // spacing can be directional even if the char isn't?
+    _.each(adjectives, function(adjective) {
+      console.log("EA", adjective);
+      if(/^(left|right)/.test(adjective)) {
+        console.log("LR", adjective);
+        direction = adjective;
+      } else if(/^(neutral|vertical|straight|typewriter|dumb|symmetric)$/.test(adjective)) {
+        direction = 'symmetric';
+        asciiness = 'ascii'; // slight hack
+      } else if(/^(typographic|curved|book|directional|smart)$/.test(adjective)
+          || (/^(curly)$/.test(adjective) && /^quot/.test(match.noun))) {
+        direction = direction || 'inferred';
+      } else if(/^(low|lower|bottom|low[- ]9)$/.test(adjective)) {
+        height = 'low';
+      } else if(/^(upper|high|top)$/.test(adjective)) {
+        height = 'high';
+      } else if(/^(single|double)$/.test(adjective)) {
+        doubledness = adjective;
+      } else if(/^(mathematical|maths|math)$/.test(adjective)) {
+        mathematical = true;
+      } else if(/^(angle|angular)$/.test(adjective)) {
+        genre = 'angle';
+      } else if(/^(square)$/.test(adjective)) {
+        genre = 'square';
+      } else if(/^(curly|flower|swirly|fancy)$/.test(adjective)) {
+        genre = 'curly';
+      } else if(/^(angle|angular)$/.test(adjective)) {
+        genre = 'angle';
+      } else if(/^(ascii|unicode)$/.test(adjective)) {
+        asciiness = adjective;
+      } else if(/^(triple|treble)$/.test(adjective)) {
+        triple = true;
+      }
+    });
+    if(genre === 'angle') {
+      if(mathematical) {
+        genre = 'chevron';
+        asciiness = asciiness || 'unicode';
+      } else {
+        genre = 'guillemet';
+        asciiness = asciiness || 'ascii';
+        doubledness = doubledness || 'single';
+      }
+    }
+    // what about 'inferred'? 'symmetric' is kind of nonsense for these of course hm
+    // Is the defaultTo for which char to pick or also for it to be directionally spaced
+    // in that dir then?
+    var choose = function(ls, rs, ld, rd, usuallyDouble, defaultTo) {
+      var doubled = (usuallyDouble ? (doubledness !== 'single') : (doubledness === 'double'));
+      var left;
+      if(direction === 'left' || direction === 'left-pointing') {
+        left = true;
+      } else if(direction === 'right' || direction === 'right-pointing') {
+        left = false;
+      } else if(defaultTo) {
+        left = (defaultTo === 'left');
+      } else {
+        return;
+      }
+      var n = (triple ? 3 : 1);
+      if(doubled) {
+        if(left) {
+          artificially_type(ld.repeat(n));
+        } else {
+          artificially_type(rd.repeat(n));
+        }
+      } else {
+        if(left) {
+          artificially_type(ls.repeat(n));
+        } else {
+          artificially_type(rs.repeat(n));
+        }
+      }
+    }
+    if(genre === 'curly') {
+      choose('{', '}', '{{', '}}', false);
+    } else if(genre === 'square') {
+      choose('[', ']', '[[', ']]', false);
+    } else if(genre === 'paren') {
+      choose('(', ')', '((', '))', false);
+    } else if(asciiness === 'ascii' && (genre === 'chevron' || genre === 'guillemet')) {
+      console.log('LDA', direction, doubledness);
+      choose('<', '>', '<<', '>>', genre === 'guillemet');
+    } else if(triple) {
+      // default """ over ''' per python convention
+      // these are for programming in a way where I don't recall
+      // them usually being surrounded by spaces? but also the others
+      // sort of shouldn't? not sure. also could depend on "left/right" i guess??
+      if(doubledness === 'single') {
+        artificially_type("'''");
+      } else {
+        artificially_type('"""');
+      }
+    } else if(genre === 'chevron') {
+      choose('⟨', '⟩', '⟪', '⟫', false);
+    } else if(genre === 'guillemet') {
+      choose('‹', '›', '«', '»', true);
+    } else if(height === 'low') {
+      choose('‚', '’', '„', '”', true, 'left');
+    // hmm should direction==undefined and asciiness=='unicode' mean
+    // to infer the direction here?
+    } else if(asciiness !== 'ascii' && /^(left|right|inferred)/.test(direction)) {
+      choose('‘', '’', '“', '”', true);
+    } else {
+      // use "choose" here in case I make it treat spacing
+      // separately for left and right? but what if it's neither. TODO.
+      // choose("'", "'", '"', '"', true);
+      if(doubledness === 'single') {
+        artificially_type("'");
+      } else {
+        artificially_type('"');
+      }
+    }
+  });
+//  add_command(/^(single (quote|quote mark|quotation mark))$/i, function() { artificially_type('\''); });
+//  add_command(/^double (quote|quote mark|quotation mark)$/i, function() { artificially_type('"'); });
+//  add_command(/^(left|right) single (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '‘' : '’'); });
+//  add_command(/^(left|right) double (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '“' : '”'); });
+
     // haha what if I downloaded a database of formal Unicode character names and
     // recognized things like LEFT-POINTING DOUBLE ANGLE QUOTATION MARK.
     // I would need to hack annyang to be able to do a table lookup, or like,
@@ -471,8 +665,8 @@ bililiteRange.bounds.BOF = function(){
     //
     // Maybe prefix them with "unicode" or "u+" for by-hex-number
     // at least if they are too short
-  add_command(/^(left|right) (chevron|guillemet)$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
-  add_command(/^double (left|right) angle( (brace|bracket|paren|quote|quotation( mark)?))?$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
+//  add_command(/^(left|right) (chevron|guillemet)$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
+//  add_command(/^double (left|right) angle( (brace|bracket|paren|quote|quotation( mark)?))?$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
   add_command(/^(?:(left|right) )?(?:(fat|thin) )?arrow$/i, function(lr, ft) {
     var ftChar = (ft === 'fat' ? '=' : '-');
     var arrow = (lr === 'left' ? '<'+ftChar : ftChar+'>');
@@ -1145,6 +1339,9 @@ var tests = [
   ['amet| consectetur', 'inverted question mark', 'amet ¿|consectetur'],
   ['amet| consectetur', 'inverted interrobang', 'amet ⸘|consectetur'],
 
+  ['amet |consectetur', 'degrees Fahrenheit', 'amet°F| consectetur'],
+  ['amet |consectetur', 'degree C', 'amet°C| consectetur'],
+  ['amet |consectetur', 'degree symbol', 'amet°| consectetur'],
 
   // no idea about @ and spaces. I guess the main use is for
   // email addresses and twitter handles so no spaces.
@@ -1316,6 +1513,8 @@ var tests = [
 
   // WHAT ABOUT SMART QUOTES IF YOU DON'T SAY LEFT OR RIGHT
   // or something
+  // "straight quotation mark"
+  // "curly quotation mark"
   ['amet |consectetur', 'quotation mark', 'amet "|consectetur'],
   ['amet |consectetur', 'left quotation mark', 'amet “|consectetur'],
   ['amet| consectetur', 'left quotation mark', 'amet “|consectetur'],
@@ -1358,7 +1557,7 @@ var tests = [
   ['amet |consectetur', 'double ampersand', 'amet &&| consectetur'],
   ['amet |consectetur', 'ampersand ampersand', 'amet &&| consectetur'],
   ['amet |consectetur', 'triple ampersand', 'amet &&&| consectetur'],
-  ['amet |consectetur', 'ampersand ampersand', 'amet &&&| consectetur'],
+  ['amet |consectetur', 'ampersand ampersand ampersand', 'amet &&&| consectetur'],
   // quadruple? (never seen a need for it yet but may be out there)
   ['amet &| consectetur', 'ampersand', 'amet &&| consectetur'],
   ['amet & |consectetur', 'ampersand', 'amet &&| consectetur'],
