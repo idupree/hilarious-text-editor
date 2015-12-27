@@ -668,7 +668,9 @@ bililiteRange.bounds.BOF = function(){
       // select through before ____? select after ___ to mean insert after ___?
       // maybe: hints to the user when they say something that's almost clear?
 
-      '^(?<action>select|select (through|thru)|delete|delete (through|thru)|' +
+      '^(?<action>' +
+        '(?<selectAction>select|select (through|thru)|extend the selection( (through|thru))?)|' +
+        '(?<deleteAction>delete|delete (through|thru))|' +
         '(?<moveAction>(go|move) ?({through})?|((go|move) ?({through})?|insert) (?<moveActionSide>before|after|past))' +
         '){ }(' +
 
@@ -685,10 +687,10 @@ bililiteRange.bounds.BOF = function(){
         var action = match.action;
         var count = parse_spoken_count(match.relativeMovementAmount);
         var unit = match.relativeMovementUnit;
-        var isSelect = /^select\b/.test(action);
-        var isDelete = /^delete\b/.test(action);
-        var isMove = /^go|move|insert/.test(action);
-        var isThrough = !isMove && /\b(through|thru)$/.test(action);
+        var isSelect = !!match.selectAction;
+        var isDelete = !!match.deleteAction;
+        var isMove = !!match.moveAction;
+        var isThrough = !isMove && /\b(through|thru|extend the selection)$/.test(action);
         // search direction:
         var backwards = ((match.backwards || match.forwards) ? match.backwards :
                           match.moveActionSide === 'before');
