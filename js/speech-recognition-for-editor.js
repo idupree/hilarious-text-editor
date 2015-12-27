@@ -382,8 +382,9 @@ bililiteRange.bounds.BOF = function(){
   });
   add_command(/^(less than( sign)?|left angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('<'); });
   add_command(/^(greater than( sign)?|right angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('>'); });
-  add_command(/^greater than or equal(|s| to)( sign)?$/i, function() { artificially_type('>='); });
-  add_command(/^less than or equal(|s| to)( sign)?$/i, function() { artificially_type('<='); });
+  add_command(/^greater( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('>='); });
+  add_command(/^less( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('<='); });
+  add_command(/^(less( than)? or equal(|s| to) or greater( than)?( sign)?|spaceship operator)$/i, function() { artificially_type('<=>'); });
   add_command(/^(double equals?( sign)?|equals? equals?)$/i, function() { artificially_type('=='); });
   add_command(/^((triple|treble) equals?( sign)?|equals? equals? equals?)$/i, function() { artificially_type('==='); });
     // hmm if I make a "not equals" command then is it != or the less common
@@ -395,8 +396,8 @@ bililiteRange.bounds.BOF = function(){
   add_command('semicolon', function() { artificially_type(';'); });
   add_command(/^(single (quote|quote mark|quotation mark)|apostrophe)$/i, function() { artificially_type('\''); });
   add_command(/double (quote|quote mark|quotation mark)/, function() { artificially_type('"'); });
-  add_command(/^(left|right) single (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr == 'left' ? '‘' : '’'); });
-  add_command(/^(left|right) double (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr == 'left' ? '“' : '”'); });
+  add_command(/^(left|right) single (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '‘' : '’'); });
+  add_command(/^(left|right) double (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr === 'left' ? '“' : '”'); });
     // haha what if I downloaded a database of formal Unicode character names and
     // recognized things like LEFT-POINTING DOUBLE ANGLE QUOTATION MARK.
     // I would need to hack annyang to be able to do a table lookup, or like,
@@ -407,8 +408,12 @@ bililiteRange.bounds.BOF = function(){
     //
     // Maybe prefix them with "unicode" or "u+" for by-hex-number
     // at least if they are too short
-  add_command(/^(left|right) (chevron|guillemet)$/i, function(lr) { artificially_type(lr == 'left' ? '«' : '»'); });
-  add_command(/^double (left|right) angle( (brace|bracket|paren|quote|quotation( mark)?))?$/i, function(lr) { artificially_type(lr == 'left' ? '«' : '»'); });
+  add_command(/^(left|right) (chevron|guillemet)$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
+  add_command(/^double (left|right) angle( (brace|bracket|paren|quote|quotation( mark)?))?$/i, function(lr) { artificially_type(lr === 'left' ? '«' : '»'); });
+  add_command(/^(?:(left|right) )?(?:(fat|thin) )?arrow$/i, function(lr, ft) {
+    var ftChar = (ft === 'fat' ? '=' : '-');
+    artificially_type(lr === 'left' ? '<'+ftChar : ftChar+'>');
+  });
     // hey Eli what is the prefix Dragon uses to say "don't treat the
     // following thing as a command"?  Also: What about replacing parts of a sequence?
     // I'll need the phonetic alphabet factored outta here
