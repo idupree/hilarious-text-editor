@@ -28,6 +28,11 @@ XRegExp.addToken(
   function() {return '(?:-|to|two|too|2|through|thru)';},
   {leadChar: '{'}
 );
+XRegExp.addToken(
+  /{unit}/,
+  function() {return '(?:letters?|characters?|identifiers?|keywords?|tokens?|symbols?|words?|lines?|rows?|paragraphs?|graphemes?|codepoints?|sentences?|parenthesized expressions?|statements?|comments?|strings?)';}, // hmm maybe some of these are getting out of hand
+  {leadChar: '{'}
+);
 // Require there is space separating words here,
 // but don't require two spaces for "{ }{ }" or any spaces for "{ }"
 // at beginning/end of match.
@@ -658,9 +663,23 @@ bililiteRange.bounds.BOF = function(){
         ).line(beginline).bounds('line').expandToInclude(end).select();
     });
   add_command(
-    XRegExp('^(select|select through|delete|) the (next|last|previous)(?: ({number}))? (characters?|words?|lines?)$', 'i'),
-      function(action, dir, count, type) {
-        count = parse_spoken_count(count);
+    XRegExp(
+      // delete through? or is that too dangerous
+
+      '^(?<action>select|select through|delete|delete through){ }(' +
+        "the (?<forwardBackDirection>next|last|previous|prior){ }" +
+          "(?<relativeMovementAmount>{number})?{ }(?<relativeMovementUnit>{unit})|" +
+      ')$', 'in'),
+
+
+      //'the (next|last|previous)(?: ({number}))? (characters?|words?|lines?)$', 'in'),
+      //function(action, dir, count, type) {
+      function(match) {
+        var action = match.action, dir = match.forwardBackDirection, count = parse_spoken_count(match.count), type = match.relativeMovementUnit;
+        var isSelect = /^select\b/.test(action);
+        var isDelete = /^delete\b/.test(action);
+        var isThrough = /\bthrough$/.test(action);
+        var initialSelection = bililiteRange(editedElement()).bounds('selection');
         var backwards = (dir !== 'next');
         if(count < 0) {
           //count = -count;
@@ -714,7 +733,10 @@ bililiteRange.bounds.BOF = function(){
         if(!range.match || count === Infinity) {
           range.expandToInclude(range.clone().bounds(backwards ? 'start' : 'end'));
         }
-        if(action === 'delete') {
+        if(isThrough) {
+          range.expandToInclude(initialSelection);
+        }
+        if(isDelete) {
           range.text('', 'end');
         }
         range.select();
@@ -751,7 +773,7 @@ bililiteRange.bounds.BOF = function(){
 
 
   // <words> optional wrapper "the phrase <words>"
-  // the next three identifiers? letters(unicode class), symbols(unicode classes,..), token (lang dependent :/),
+  // the next three identifiers? letters(unicode class{what about combining characters?? then again what happens if "select the next character" selects an e without its acute??}), symbols(unicode classes,..), token (lang dependent :/),
   // biggest deal i can think of with token incompat is...
   // comments, well never mind...
   // tokens with dashes, vs subtraction. Maybe can guess from context?
