@@ -20,7 +20,10 @@ XRegExp.install({astral: true});
 // that it helps to capture homophones, we check some of those.
 XRegExp.addToken(
   /{number}/,
-  function() {return '(?:(?:-|−|negative|minus|dash|hyphen)? ?[0-9]+|a|one|two|to|too|three|for|four|infinit[yei]|every|all)';},
+  // https://en.wikipedia.org/wiki/Tuple#Names_for_tuples_of_specific_lengths
+  // Few folks know or need the tuple words above 8, though
+  // (regular number speech is an alternative).
+  function() {return '(?:(?:-|−|negative|minus|dash|hyphen)? ?[0-9]+|a|one|two|to|too|three|for|four|infinit[yei]|every|all|single|singleton|monuple|couple|a couple|double|duple|triple|treble|quad|quadruple|quintuple|pentuple|[sh]extuple|[sh]eptuple|octuple)';},
   {leadChar: '{'}
 );
 XRegExp.addToken(
@@ -51,14 +54,22 @@ function parse_spoken_count(count) {
   var negated = /^(-(?=.)|−|negative|minus|hyphen|dash) ?(.*)$/.exec(count);
   if(negated) { count = negated[2]; }
   var sign = (negated ? -1 : 1);
-  if(count === '' || count === 'a' || count === 'an' || count === 'one') {
+  if(count === '' || count === 'a' || count === 'an' || count === 'one' || count === 'single' || count === 'singleton' || count === 'monuple') {
     return sign * 1;
-  } else if(count === 'two' || count === 'to' || count === 'too' || count === '-') {
+  } else if(count === 'two' || count === 'to' || count === 'too' || count === '-' || count === 'double' || count === 'duple' || count === 'couple' || count === 'a couple') {
     return sign * 2;
-  } else if(count === 'three') {
+  } else if(count === 'three' || count === 'triple' || count === 'treble') {
     return sign * 3;
-  } else if(count === 'four' || count == 'for') {
+  } else if(count === 'four' || count == 'for' || count === 'quad' || count == 'quadruple') {
     return sign * 4;
+  } else if(count === 'quintuple' || count === 'pentuple') {
+    return sign * 5;
+  } else if(count === 'sextuple' || count === 'hextuple') {
+    return sign * 6;
+  } else if(count === 'septuple' || count === 'heptuple') {
+    return sign * 7;
+  } else if(count === 'octuple') {
+    return sign * 8;
   //} else if(match = /^(-|negative|minus|hyphen|dash)? ?(?:completely|every|infinit[eyi]|all)$/i.exec(count)) {
   } else if(/^(?:infinit[eyi]|every|all)$/i.test(count)) {
     return sign * Infinity;
@@ -125,6 +136,8 @@ var editedElement = function() {
 // TODO make this configurable and/or autodetected:
 var num_tab_spaces = 2;
 var tab_spaces = ' '.repeat(num_tab_spaces);
+// TODO figure out how to make this configurable w.r.t.
+// spaces appearing/disappearing around the added text:
 function artificially_type(text) {
   var el = editedElement();
   if(el === null || el.nodeName.toLowerCase() === 'body') {
@@ -218,6 +231,12 @@ annyang.registerCommand('unicode <unicode-character-name>', function(str, debug)
 
 
 function add_command(regex_or_str, fn) {
+  if(_.isArray(regex_or_str)) {
+    _.each(regex_or_str, function(rs) {
+      add_command(rs, fn);
+    });
+    return;
+  }
   var name = regex_or_str;
   if(_.isRegExp(regex_or_str)) {
     // make the name logged to the user be, arguably, a bit more
@@ -308,16 +327,43 @@ bililiteRange.bounds.BOF = function(){
   add_command('underscore', function() { artificially_type('_'); });
   add_command('tilde', function() { artificially_type('~'); });
   add_command('backtick', function() { artificially_type('`'); });
-  add_command('exclamation mark', function() { artificially_type('!'); });
+  var exclamationmark = ['exclamation mark', 'exclamation point', 'exclamation'];
+  add_command(exclamationmark, function() { artificially_type('!'); });
+  add_command('bang', function() { artificially_type('!'); });
+  // hmm is there any reason to pull out the full force of {number} here
+  // vs. just "double bang"?
+  add_command(['bang bang', 'double bang'], function() { artificially_type('!!'); });
+  var questionmark = ['question mark', 'question point', 'question sign', 'question symbol', 'interrogation point', 'interrogation mark'];
+  add_command(questionmark, function() { artificially_type('?'); });
+  add_command(['hook', 'hook sign', 'hook symbol'], function() { artificially_type('?'); });
+  add_command('interrobang', function() { artificially_type('‽'); });
+  add_command(_.map(exclamationmark, function(q) { return 'inverted ' + q; }), function() { artificially_type('¡'); });
+  add_command(_.map(questionmark, function(q) { return 'inverted ' + q; }), function() { artificially_type('¿'); });
+  add_command('inverted interrobang', function() { artificially_type('⸘'); });
   add_command('at sign', function() { artificially_type('@'); });
-  add_command('hashtag', function() { artificially_type('#'); });
-  add_command('dollar sign', function() { artificially_type('$'); });
+  add_command(['hashtag', 'hash tag', 'hash sign', 'hash symbol', 'hash', 'hashtag symbol', 'hash tag symbol', 'number sign', 'octothorpe'], function() { artificially_type('#'); });
+  add_command(['flat sign', 'music flat sign', 'musical flat sign'], function() { artificially_type('♭'); });
+  add_command(['sharp sign', 'music sharp sign', 'musical sharp sign'], function() { artificially_type('♯'); });
+  add_command(['dollar sign', 'dollar symbol'], function() { artificially_type('$'); });
+  add_command(['euro sign', 'euro symbol'], function() { artificially_type('€'); });
+  add_command(['pound sign'], function() { artificially_type('£'); });
+  add_command(['yen sign'], function() { artificially_type('¥'); });
+  add_command(['cent sign', 'cents sign'], function() { artificially_type('¢'); });
   add_command('percent', function() { artificially_type('%'); });
     // speech recognition finds 'carrot' and 'carat' and stuff
     // before 'caret', so match 'carrot' instead of 'caret':
-  add_command('carrot', function() { artificially_type('^'); });
+  add_command(['carrot', 'carat', 'caret', 'hat sign', 'hat symbol'], function() { artificially_type('^'); });
   add_command('ampersand', function() { artificially_type('&'); });
-  add_command('asterisk', function() { artificially_type('*'); });
+  add_command(['asterisk', 'star'], function() { artificially_type('*'); });
+  add_command(['times', 'multiply', 'multiplied by'], function() { artificially_type('*'); });// unicode version ×
+  add_command(['divide', 'divided by'], function() { artificially_type('/'); }); //unicode version ÷
+  add_command(['minus', 'subtract'], function() { artificially_type('-'); }); // unicode version − U+2212 MINUS SIGN
+  add_command(['period', 'full stop', 'fullstop'], function() { artificially_type('.'); });
+  add_command('dot', function() { artificially_type('.'); });
+  add_command('dot dot', function() { artificially_type('..'); });
+  add_command('dot dot dot', function() { artificially_type('...'); });
+  add_command('dot dot dot dot', function() { artificially_type('....'); });
+  add_command('comma', function() { artificially_type(','); });
     // TODO: 'brackets' to type [] and put the cursor in the middle?
   add_command(/^(left|right) paren(thesis|theses)?$/i, function(lr) {
       artificially_type(lr === 'left' ? '(' : ')');
@@ -328,21 +374,26 @@ bililiteRange.bounds.BOF = function(){
   add_command(/^(left|right) (brace|curly brace|curly brackets?|flower ?brackets?)$/i, function(lr) {
       artificially_type(lr === 'left' ? '{' : '}');
     });
-  add_command(/^forward ?slash$/i, function() { artificially_type('/'); });
+  add_command(/^(?:forward ?)?slash$/i, function() { artificially_type('/'); });
   add_command(/^back ?slash$/i, function() { artificially_type('\\'); });
-  add_command(/^less than( sign)?|left angle (brace|bracket|paren(thesis|theses))$/i, function() { artificially_type('<'); });
-  add_command(/^greater than( sign)?|right angle (brace|bracket|paren(thesis|theses))$/i, function() { artificially_type('>'); });
-  add_command('greater than or equal to', function() { artificially_type('>='); });
-  add_command('less than or equal to', function() { artificially_type('<='); });
-  add_command(/^double equals?( sign)?|equals? equals?$/i, function() { artificially_type('=='); });
-  add_command(/^(triple|treble) equals?( sign)?|equals? equals? equals?$/i, function() { artificially_type('==='); });
+  add_command(XRegExp("^({number}){ }back ?slash(?:es)?$", 'i'), function(n) {
+    var count = parse_spoken_count(n);
+    artificially_type('\\'.repeat(count));
+  });
+  add_command(/^(less than( sign)?|left angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('<'); });
+  add_command(/^(greater than( sign)?|right angle (brace|bracket|paren(thesis|theses)))$/i, function() { artificially_type('>'); });
+  add_command(/^greater than or equal(|s| to)( sign)?$/i, function() { artificially_type('>='); });
+  add_command(/^less than or equal(|s| to)( sign)?$/i, function() { artificially_type('<='); });
+  add_command(/^(double equals?( sign)?|equals? equals?)$/i, function() { artificially_type('=='); });
+  add_command(/^((triple|treble) equals?( sign)?|equals? equals? equals?)$/i, function() { artificially_type('==='); });
     // hmm if I make a "not equals" command then is it != or the less common
     // ~= and /= ?.....
-  add_command(/^exclamation( mark)? equals?( sign)?$/i, function() { artificially_type('!='); });
-  add_command(/^exclamation( mark)? (double|triple|treble|equals?( sign)?) equals?( sign)?$/i, function() { artificially_type('!=='); });
+  add_command(/^(exclamation( mark| point)?|bang) equals?( sign)?$/i, function() { artificially_type('!='); });
+  add_command(/^(exclamation( mark| point)?|bang) (double|triple|treble|equals?( sign)?) equals?( sign)?$/i, function() { artificially_type('!=='); });
   add_command('colon', function() { artificially_type(':'); });
+  add_command(['double colon', 'colon colon', 'colons'], function() { artificially_type('::'); });
   add_command('semicolon', function() { artificially_type(';'); });
-  add_command(/^single (quote|quote mark|quotation mark)|apostrophe$/i, function() { artificially_type('\''); });
+  add_command(/^(single (quote|quote mark|quotation mark)|apostrophe)$/i, function() { artificially_type('\''); });
   add_command(/double (quote|quote mark|quotation mark)/, function() { artificially_type('"'); });
   add_command(/^(left|right) single (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr == 'left' ? '‘' : '’'); });
   add_command(/^(left|right) double (quote|quote mark|quotation mark)$/i, function(lr) { artificially_type(lr == 'left' ? '“' : '”'); });
@@ -675,8 +726,13 @@ bililiteRange.bounds.BOF = function(){
         '){ }(' +
 
 //        "(the)?{ }(?<forwardBackDirection>next|last|previous|prior|forwards?|back|backwards?|down|up){ }" +
-        "(the)?{ }((?<forwards>next|forwards?|down)|(?<backwards>last|previous|prior|back|backwards?|up)){ }" +
-          "(?<relativeMovementAmount>{number})?{ }(?<relativeMovementUnit>{unit})|" +
+        "(?<relativeMovementByCountedUnit>(the)?{ }((?<forwards>next|forwards?|down)|(?<backwards>last|previous|prior|back|backwards?|up)){ }" +
+          "(?<relativeMovementAmount>{number})?{ }(?<relativeMovementUnit>{unit}))|" +
+        // TODO does paragraph===line or not
+        // WAIT this should be folded into working with other units too
+        // like the file
+        // like the word
+        //"(?<terminusOfLine>(the)?{ }((?<BOL>start|beginning)|(?<EOL>end)){ }of{ }(the)?{ }(line|nine|9:?|row|paragraph))"
       ')$', 'in'),
 
 
@@ -1105,13 +1161,15 @@ var tests = [
   // both like writing down a literal hashtable between
   // unicode and ascii versions ;-)
   // Default to unicode and show an info-bar saying how to switch? I guess?
+  // And let me prefix phrases that can mean either, with either,
+  // except that "ascii" is hard to speech-recognize, I think?
   // Note that the equal signs have to be escaped with more equal signs.
   ['amet |consectetur', 'less than sign', 'amet <| consectetur'],
   ['amet |consectetur', 'less than or equal to sign', 'amet <==| consectetur'],
   ['amet |consectetur', 'less than or equals sign', 'amet <==| consectetur'],
   ['amet |consectetur', 'greater than or equal to sign', 'amet >==| consectetur'],
   ['amet |consectetur', 'greater than or equal to sign', 'amet >==| consectetur'],
-  ['amet |consectetur', 'greater than sign', 'amet >==| consectetur'],
+  ['amet |consectetur', 'greater than sign', 'amet >| consectetur'],
   ['amet |consectetur', 'less than or equal to or greater than sign', 'amet <==>| consectetur'],
   ['amet |consectetur', 'less or equal or greater sign', 'amet <==>| consectetur'],
   ['amet |consectetur', 'spaceship operator', 'amet <==>| consectetur'],
