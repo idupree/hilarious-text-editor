@@ -76,24 +76,27 @@ function re_from_to(re, from, to, textlen) {
 
 bililiteRange.extend({
 	
-	find: function(re, nowrap, backwards){
+	find: function(re, nowrap, backwards, withinbounds){
 		// little hack: can put the "nowrap" as a flag on the RegExp itself, analagous to ignoreCase and multiline; overrides the parameter
 		if (re.nowrap !== undefined) nowrap = re.nowrap;
+		if (withinbounds === undefined) withinbounds = [0, Number.MAX_VALUE];
 		var bounds = this.bounds();
 		if (!backwards){
 			var findprimitive = 'findprimitive';
-			var initialbounds = [bounds[0], Number.MAX_VALUE];
-			var fallbackbounds = [bounds[0]+1, Number.MAX_VALUE];
+			var initialbounds = [Math.max(bounds[0], withinbounds[0]), withinbounds[1]];
+			// (fallback will not be needed if withinbounds[0] > bounds[0])
+			var fallbackbounds = [bounds[0]+1, withinbounds[1]];
 		}else{
 			findprimitive = 'findprimitiveback';
-			initialbounds = [0, bounds[0]];
-			fallbackbounds = [0, bounds[0]-1];
+			initialbounds = [withinbounds[0], Math.min(bounds[0], withinbounds[1])];
+			// (fallback will not be needed if withinbounds[1] < bounds[0])
+			fallbackbounds = [withinbounds[0], bounds[0]-1];
 		}
 		var match = this[findprimitive](re, initialbounds);
 		if (matchIs(match, bounds)){ // if the match is exactly the current string, it doesn't count
 			match = this[findprimitive](re, fallbackbounds);
 		}
-		if (!match && !nowrap) match = this[findprimitive](re, [0, Number.MAX_VALUE]);
+		if (!match && !nowrap) match = this[findprimitive](re, withinbounds);
 		if (matchIs(match, bounds)) match = false; // again, even with wrapping, don't find the identical segment
 		this.match = match; // remember this for the caller
 		if (match) this.bounds([match.index, match.index+match[0].length]); // select the found string
