@@ -12,6 +12,33 @@ bililiteRange.fn.expandToInclude = function(otherRange) {
     Math.max(this.bounds()[1], otherRange.bounds()[1])
     ]);
 };
+bililiteRange.bounds.lines = function() {
+  // selections that include a trailing newline
+  // shouldn't expand to include the following line
+  if(this.bounds()[0] !== this.bounds()[1] &&
+    this.all()[this.bounds()[1] - 1] === '\n') {
+    this.bounds([this.bounds()[0], this.bounds()[1] - 1]);
+  }
+  return [
+    this.clone().bounds('startbounds').bounds('BOL').bounds()[0],
+    this.clone().bounds('endbounds').bounds('EOL').bounds()[1]
+    ];
+};
+// for now just some fixed definition of matching a "word"
+bililiteRange.bounds.words = function() {
+  var b = this.bounds();
+  var b0 = this.clone().bounds('startbounds'
+    ).findBack(/[ \t\r\n]|^/, true).bounds('endbounds'
+    ).find(/[^ \t\r\n]/, true).bounds('startbounds').bounds()[0];
+  var b1 = this.clone().bounds('endbounds'
+    ).find(/[ \t\r\n]|$/, true).bounds('startbounds'
+    ).findBack(/[^ \t\r\n]/, true).bounds('endbounds').bounds()[1];
+  if(b0 < b1) {
+    return [b0, b1];
+  } else {
+    return b;
+  }
+};
 
 // Forestall any latent astral-plane Unicode bugs:
 XRegExp.install({astral: true});
@@ -1035,11 +1062,14 @@ bililiteRange.bounds.BOF = function(){
 //        "(the)?{ }(?<forwardBackDirection>next|last|previous|prior|forwards?|back|backwards?|down|up){ }" +
         "(?<relativeMovementByCountedUnit>(the)?{ }((?<forwards>next|forwards?|down)|(?<backwards>last|previous|prior|back|backwards?|up)){ }" +
           "(?<relativeMovementAmount>{number})?{ }(?<relativeMovementUnit>{unit}))|" +
+
+        "(?<matchThisUnit>(the)?{ }(current)?{ }(?<thisUnit>{unit}))|" +
         // TODO does paragraph===line or not
         // WAIT this should be folded into working with other units too
         // like the file
         // like the word
         //"(?<terminusOfLine>(the)?{ }((?<BOL>start|beginning)|(?<EOL>end)){ }of{ }(the)?{ }(line|nine|9:?|row|paragraph))"
+        "(?=x)(?!x)" + // hack impossible thing so that editing above lines ending in | works better
       ')$', 'in'),
 
 
@@ -1049,10 +1079,11 @@ bililiteRange.bounds.BOF = function(){
         // would it be useful to log these deductions?
         var action = match.action;
         var count = parse_spoken_count(match.relativeMovementAmount);
-        var unit = match.relativeMovementUnit;
+        var unit = match.relativeMovementUnit || match.thisUnit;
         var isSelect = !!match.selectAction;
         var isDelete = !!match.deleteAction;
         var isMove = !!match.moveAction;
+        var isThisUnit = !!match.matchThisUnit;
         var isThrough = !isMove && /\b(through|thru|extend the selection)$/.test(action);
         // search direction:
         var backwards = ((match.backwards || match.forwards) ? match.backwards :
@@ -1094,27 +1125,31 @@ bililiteRange.bounds.BOF = function(){
           }
           re = new RegExp('(?:'+base_re+'){'+count+'}', re_flags);
         }
-        var range = bililiteRange(editedElement()).bounds('selection'
-          ).bounds(backwards ? 'startbounds' : 'endbounds');
+        var range = bililiteRange(editedElement()).bounds('selection');
         if(/^word/.test(unit)) {
-          //var prevrange = range.clone();
-          var prevchar = range.bounds()[0] + (backwards ? 1 : -1);
-          range.bounds([prevchar, prevchar]).find(/(?![a-zA-Z'])/);
-          if(!range.match) {
-            range.bounds(backwards ? 'start' : 'end');
-          }
+          ////var prevrange = range.clone();
+          //var prevchar = range.bounds()[0] + (backwards ? 1 : -1);
+          //range.bounds([prevchar, prevchar]).find(/(?![a-zA-Z'])/);
+          //if(!range.match) {
+          //  range.bounds(backwards ? 'start' : 'end');
+          //}
+          range.bounds('words');
         } else if(/^line/.test(unit)) {
-          range.bounds(backwards ? 'BOL' : 'EOL');
+          //range.bounds(backwards ? 'BOL' : 'EOL');
+          range.bounds('lines');
         }
-        if(count !== Infinity) {
-          // TODO for fixing backwards:
-          // It should be able to select from before-start to exactly-start.
-          // It should select the first match that ends the latest, I guess,
-          // to be greedy.
-          range.find(re, nowrap, backwards);
-        }
-        if(!range.match || count === Infinity) {
-          range.expandToInclude(range.clone().bounds(backwards ? 'start' : 'end'));
+        if(match.relativeMovementByCountedUnit) {
+          range.bounds(backwards ? 'startbounds' : 'endbounds');
+          if(count !== Infinity) {
+            // TODO (maybedone in the bililite) for fixing backwards:
+            // It should be able to select from before-start to exactly-start.
+            // It should select the first match that ends the latest, I guess,
+            // to be greedy.
+            range.find(re, nowrap, backwards);
+          }
+          if(!range.match || count === Infinity) {
+            range.expandToInclude(range.clone().bounds(backwards ? 'start' : 'end'));
+          }
         }
         if(isThrough) {
           range.expandToInclude(initialSelection);
