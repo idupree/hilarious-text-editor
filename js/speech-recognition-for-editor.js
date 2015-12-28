@@ -381,6 +381,7 @@ bililiteRange.bounds.BOF = function(){
   add_command('zulu', function() { artificially_type('z'); });
   add_command('underscore', function() { artificially_type('_'); });
   add_command('tilde', function() { artificially_type('~'); });
+  add_command(['tilde tilde', 'double tilde'], function() { artificially_type('~~'); });
   add_command(['backtick', 'back tick', 'backquote', 'back quote'], function() { artificially_type('`'); });
   var exclamationmark = ['exclamation mark', 'exclamation point', 'exclamation'];
   add_command(exclamationmark, function() { artificially_type('!', '', '  '); });
@@ -418,10 +419,32 @@ bililiteRange.bounds.BOF = function(){
     // before 'caret', so match 'carrot' instead of 'caret':
   add_command(['carrot', 'carat', 'caret', 'hat sign', 'hat symbol'], function() { artificially_type('^'); });
   add_command('ampersand', function() { artificially_type('&'); });
+  add_command(['ampersand ampersand', 'and and', 'double ampersand'], function() { artificially_type('&&', ' ', ' '); });
+  add_command(['ampersand ampersand ampersand', 'and and and', 'triple ampersand'], function() { artificially_type('&&&', ' ', ' '); });
+  add_command(['pipe', 'vertical bar'], function() { artificially_type('|', ' ', ' '); });
+  add_command(['pipe pipe', 'or or', 'double pipe', 'double vertical bar', 'vertical bar vertical bar', 'vertical bar bar', 'double bar', 'vertical double bar'], function() { artificially_type('||', ' ', ' '); });
+  add_command(['pipe pipe pipe', 'or or or', 'triple pipe', 'triple vertical bar', 'vertical bar vertical bar vertical bar', 'vertical bar bar bar', 'triple bar', 'vertical triple bar'], function() { artificially_type('|||', ' ', ' '); });
   add_command(['asterisk', 'star'], function() { artificially_type('*'); });
   add_command(['times', 'multiply', 'multiplied by'], function() { artificially_type('*', ' ', ' '); });// unicode version ×
   add_command(['divide', 'divided by'], function() { artificially_type('/', ' ', ' '); }); //unicode version ÷
+  // this is used e.g. in python3 for integer divide
+  // (say "slash slash" for other spacing semantics I guess?)
+  add_command(['divide divide', 'double divide', 'double divided by'], function() { artificially_type('//', ' ', ' '); }); //unicode version ÷
   add_command(['minus', 'subtract'], function() { artificially_type('-', ' ', ' '); }); // unicode version − U+2212 MINUS SIGN
+  add_command(['minus sign'], function() { artificially_type('-'); }); // unicode version − U+2212 MINUS SIGN
+  add_command(['unary minus', 'unary minus sign'], function() { artificially_type('-', ' ', ''); }); // unicode version − U+2212 MINUS SIGN
+  // spoken "dash" is matched as ['Dash', '-', ...]
+  // spoken "hyphen" as ['-', 'hyphen', ...]
+  // by this speech recognizer. We could look at the later
+  // possibilities, or assume it happens like that for now.
+  // There are lots of uses though... like, in "3-5"...
+  add_command(['-', 'hyphen'], function() { artificially_type('-', '', ''); });
+  add_command(['dash'], function() { artificially_type('-', ' ', ' '); });
+  add_command(['en dash', 'n dash'], function() { artificially_type('–', ' ', ' '); });
+  add_command(['em dash', 'm dash'], function() { artificially_type('—', ' ', ' '); });
+  add_command(['plus'], function() { artificially_type('+', ' ', ' '); });
+  add_command(['plus sign'], function() { artificially_type('+'); });
+  add_command(['unary plus', 'unary plus sign'], function() { artificially_type('+', ' ', ''); });
   add_command(['period', 'full stop', 'fullstop'], function() { artificially_type('.', '', '  '); });
   add_command('dot', function() { artificially_type('.'); });
   add_command('dot dot', function() { artificially_type('..'); });
@@ -429,16 +452,18 @@ bililiteRange.bounds.BOF = function(){
   add_command('dot dot dot dot', function() { artificially_type('....'); });
   add_command('comma', function() { artificially_type(',', '', ' '); });
     // TODO: 'brackets' to type [] and put the cursor in the middle?
-  add_command(/^(left|right) paren(thesis|theses)?$/i, function(lr) {
-      artificially_type(lr === 'left' ? '(' : ')');
-    });
-  add_command(/^(left|right) (square ?)bracket$/i, function(lr) {
-      artificially_type(lr === 'left' ? '[' : ']');
-    });
-  add_command(/^(left|right) (brace|curly brace|curly brackets?|flower ?brackets?)$/i, function(lr) {
-      artificially_type(lr === 'left' ? '{' : '}');
-    });
+  //add_command(/^(left|right) paren(thesis|theses)?$/i, function(lr) {
+  //    artificially_type(lr === 'left' ? '(' : ')');
+  //  });
+  //add_command(/^(left|right) (square ?)bracket$/i, function(lr) {
+  //    artificially_type(lr === 'left' ? '[' : ']');
+  //  });
+  //add_command(/^(left|right) (brace|curly brace|curly brackets?|flower ?brackets?)$/i, function(lr) {
+  //    artificially_type(lr === 'left' ? '{' : '}');
+  //  });
   add_command(/^(?:forward ?)?slash$/i, function() { artificially_type('/'); });
+  add_command(/^(slash slash|double slash)$/i, function() { artificially_type('//'); });
+  add_command(/^(slash slash slash|triple slash)$/i, function() { artificially_type('///'); });
   add_command(/^back ?slash$/i, function() { artificially_type('\\'); });
   add_command(XRegExp("^({number}){ }back ?slash(?:es)?$", 'i'), function(n) {
     var count = parse_spoken_count(n);
@@ -451,12 +476,37 @@ bililiteRange.bounds.BOF = function(){
   add_command(/^greater( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('>=', ' ', ' '); });
   add_command(/^less( than)? or equal(|s| to)( sign)?$/i, function() { artificially_type('<=', ' ', ' '); });
   add_command(/^(less( than)? or equal(|s| to) or greater( than)?( sign)?|spaceship operator)$/i, function() { artificially_type('<=>', ' ', ' '); });
-  add_command(/^(double equals?( sign)?|equals? equals?)$/i, function() { artificially_type('==', ' ', ' '); });
+  add_command(/^equals? sign$/i, function() { artificially_type('=', ' ', ' '); });
+  add_command(/^(double equals?( sign)?|equals?( sign)? equals?( sign)?)$/i, function() { artificially_type('==', ' ', ' '); });
   add_command(/^((triple|treble) equals?( sign)?|equals? equals? equals?)$/i, function() { artificially_type('===', ' ', ' '); });
     // hmm if I make a "not equals" command then is it != or the less common
     // ~= and /= ?.....
   add_command(/^(exclamation( mark| point)?|bang) equals?( sign)?$/i, function() { artificially_type('!=', ' ', ' '); });
   add_command(/^(exclamation( mark| point)?|bang) (double|triple|treble|equals?( sign)?) equals?( sign)?$/i, function() { artificially_type('!==', ' ', ' '); });
+  add_command(/^(colon) equals?( sign)?$/i, function() { artificially_type(':=', ' ', ' '); });
+  add_command(/^(double colon|colon colon|colons) equals?( sign)?$/i, function() { artificially_type('::=', ' ', ' '); });
+  add_command(/^(plus|plus sign|add) equals?( sign)?$/i, function() { artificially_type('+=', ' ', ' '); });
+  add_command(/^(-|hyphen|dash|minus|subtract) equals?( sign)?$/i, function() { artificially_type('-=', ' ', ' '); });
+  add_command(/^(star|asterisk|times|multiply|multiplied by) equals?( sign)?$/i, function() { artificially_type('*=', ' ', ' '); });
+  add_command(/^(slash|divide|divided by) equals?( sign)?$/i, function() { artificially_type('/=', ' ', ' '); });
+  add_command(/^(double slash|slash slash|divide divide|double divide) equals?( sign)?$/i, function() { artificially_type('//=', ' ', ' '); });
+  add_command(/^(triple slash|slash slash slash) equals?( sign)?$/i, function() { artificially_type('///=', ' ', ' '); });
+  // not 'hat equals' because that could also mean ≙ U+2259 ESTIMATES
+  add_command(/^(carrot|carat|caret) equals?( sign)?$/i, function() { artificially_type('^=', ' ', ' '); });
+  add_command(/^(percent) equals?( sign)?$/i, function() { artificially_type('%=', ' ', ' '); });
+  add_command(/^(tilde) equals?( sign)?$/i, function() { artificially_type('~=', ' ', ' '); });
+  add_command(/^(dollars?( sign)?) equals?( sign)?$/i, function() { artificially_type('$=', ' ', ' '); });
+  add_command(/^(at( sign)?) equals?( sign)?$/i, function() { artificially_type('@=', ' ', ' '); });
+  add_command(/^(ampersand) equals?( sign)?$/i, function() { artificially_type('&=', ' ', ' '); });
+  add_command(/^(and|and and|ampersand ampersand|double ampersand) equals?( sign)?$/i, function() { artificially_type('&&=', ' ', ' '); });
+  add_command(/^(pipe|vertical bar) equals?( sign)?$/i, function() { artificially_type('|=', ' ', ' '); });
+  add_command(/^(or|or or|pipe pipe|double pipe|double vertical bar|vertical bar vertical bar|vertical bar bar|double bar) equals?( sign)?$/i, function() { artificially_type('||=', ' ', ' '); });
+  add_command(/^(or or or|pipe pipe pipe|triple pipe|triple vertical bar|vertical bar vertical bar vertical bar|vertical bar bar bar|triple bar) equals?( sign)?$/i, function() { artificially_type('|||=', ' ', ' '); });
+  add_command(/^((left double|double left) (angle|less( than)?( symbol| sign)?)|(less( than)?( symbol| sign)?){2}|left angle angle) equals?( sign)?$/i, function() { artificially_type('<<=', ' ', ' '); });
+  add_command(/^((right double|double right) (angle|greater( than)?( symbol| sign)?)|(greater( than)?( symbol| sign)?){2}|right angle angle) equals?( sign)?$/i, function() { artificially_type('>>=', ' ', ' '); });
+  add_command(/^((left triple|triple left) (angle|less( than)?( symbol| sign)?)|(less( than)?( symbol| sign)?){3}|left angle angle angle) equals?( sign)?$/i, function() { artificially_type('<<<=', ' ', ' '); });
+  add_command(/^((right triple|triple right) (angle|greater( than)?( symbol| sign)?)|(greater( than)?( symbol| sign)?){3}|right angle angle angle) equals?( sign)?$/i, function() { artificially_type('>>>=', ' ', ' '); });
+
   add_command('colon', function() { artificially_type(':', '', ' '); });
   add_command(['double colon', 'colon colon', 'colons'], function() { artificially_type('::', ' ', ' '); });
   add_command('semicolon', function() { artificially_type(';', '', ' '); });
@@ -1568,7 +1618,7 @@ var tests = [
   ['amet |consectetur', 'vertical bar bar', 'amet =|=|| consectetur'],
   ['amet |consectetur', 'triple pipe', 'amet =|=|=|| consectetur'],
   ['amet |consectetur', 'pipe pipe pipe', 'amet =|=|=|| consectetur'],
-  ['amet |consectetur', 'pipe double pipe', 'amet =|=|=|| consectetur'], //is this needed?
+  //['amet |consectetur', 'pipe double pipe', 'amet =|=|=|| consectetur'], //is this needed?
   ['amet |consectetur', 'equal sign', 'amet ==| consectetur'],
   ['amet |consectetur', 'double equal sign', 'amet ====| consectetur'],
   ['amet|consectetur', 'triple equal sign', 'amet ======| consectetur'],
