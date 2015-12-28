@@ -48,8 +48,6 @@ bililiteRange.bounds.wordscontained = function() { return rangewords(this, 'word
 // intersected: just "bar baz"
 // contained: just "bar"
 //
-// TODO wordsintersected seems buggy (too aggressive like touched?)
-//
 // Can I extend (if needed) bililiteRange to work on non-DOM
 // "{string: 'fsddfs'}"? Or more concisely "['fsddfs']".
 // So that it's slightly easier for me to experiment with in the console?
@@ -58,22 +56,23 @@ bililiteRange.bounds.wordscontained = function() { return rangewords(this, 'word
 // and set it?
 function rangewords(range, aggressiveness) {
   var b = range.bounds();
+  var text = range.all();
   var r0 = range.clone().bounds('startbounds');
   if(aggressiveness === 'wordstouched' ||
-      (aggressiveness === 'wordsintersected' && /[^ \t\r\n]/.test(r0.bounds()[0]))) {
+      (aggressiveness === 'wordsintersected' && /[^ \t\r\n]/.test(text[r0.bounds()[0]]))) {
     r0.findBack(/[ \t\r\n]|^/, true).bounds('endbounds');
   }
-  if(aggressiveness === 'wordscontained' && /[^ \t\r\n]/.test(r0.bounds()[0]-1)) {
+  if(aggressiveness === 'wordscontained' && /[^ \t\r\n]/.test(text[r0.bounds()[0]-1])) {
     r0.find(/[ \t\r\n]|$/, true).bounds('startbounds');
   }
   r0.find(/[^ \t\r\n]/, true).bounds('startbounds');
   var b0 = r0.bounds()[0];
   var r1 = range.clone().bounds('endbounds');
   if(aggressiveness === 'wordstouched' ||
-      (aggressiveness === 'wordsintersected' && /[^ \t\r\n]/.test(r1.bounds()[1]-1))) {
+      (aggressiveness === 'wordsintersected' && /[^ \t\r\n]/.test(text[r1.bounds()[1]-1]))) {
     r1.find(/[ \t\r\n]|$/, true).bounds('startbounds');
   }
-  if(aggressiveness === 'wordscontained' && /[^ \t\r\n]/.test(r1.bounds()[1])) {
+  if(aggressiveness === 'wordscontained' && /[^ \t\r\n]/.test(text[r1.bounds()[1]])) {
     r1.findBack(/[ \t\r\n]|^/, true).bounds('endbounds');
   }
   r1.findBack(/[^ \t\r\n]/, true).bounds('endbounds');
