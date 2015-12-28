@@ -1712,6 +1712,7 @@ var makeCursorPosStr = function(text, cursorStartAndEnd) {
 var numPasses = 0;
 var numFails = 0;
 var fails = { selectionMajor: 0, selectionMinor: 0, whitespace: 0, content: 0, unimplemented: 0 };
+var exceptions = [];
 var runTextareaTest = function(test) {
   var start = parseCursorPosStr(test[0]);
   var commands = test[1];
@@ -1724,9 +1725,15 @@ var runTextareaTest = function(test) {
   document.body.appendChild(textarea);
   textarea.focus();
   bililiteRange(textarea).bounds(start.cursorStartAndEnd).select();
-  _.each(commands, function(command) {
-    annyang.runCommand(command);
-  });
+  try {
+    _.each(commands, function(command) {
+      annyang.runCommand(command);
+    });
+  } catch(e) {
+    console.log(e);
+    textarea.value = e.toString();
+    exceptions.push(e);
+  }
   var actualEndText = textarea.value;
   var actualEndSelection = bililiteRange(textarea).bounds('selection').bounds();
   document.body.removeChild(textarea);
@@ -1774,8 +1781,13 @@ var runTests = function() {
     .append($('<div>').html('&nbsp;'))
   );
   oldActiveElement.focus();
+  if(exceptions.length) {
+    throw exceptions[0];
+  }
 };
 // always? what if that's slow, or confuses an accessibility technology
+// I'd increased the timer from 100ms to 3s because Chrome's debugger
+// hadn't finished initializing by 100ms so it couldn't stop at breakpoints.
 setTimeout(runTests, 100);
 
 }());
