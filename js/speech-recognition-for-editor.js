@@ -500,7 +500,6 @@ bililiteRange.bounds.BOF = function(){
       ).replace(/right pointing/g, 'right-pointing'
       ).replace(/low 9/g, 'low-9'
       ).split(' ');
-    console.log('ADJ', match.adjectives, adjectives);
     // ascii: ' " < > ''' """ << >> (does anyone use << and >> as brackets?)
     // unicode:
     // directional english quotes: “ ” ‘ ’
@@ -508,14 +507,14 @@ bililiteRange.bounds.BOF = function(){
     // guillemets: « » ‹ ›
     // mathematical chevron: ⟨ ⟩ ⟪ ⟫
     // other: there are others that are more obscure to me that we could add
-    var direction;
+    var symboldirection;
+    var spacingdirection;
     var height;
     var doubledness;
     var genre; // chr
     var mathematical;
     var asciiness; // force ascii, prefer fancy, or neither
     var triple = false;
-    var maybeNotABracket = false;
     if(match.noun === 'chevron') {
       genre = 'chevron';
     } else if(match.noun === 'guillemet') {
@@ -526,7 +525,7 @@ bililiteRange.bounds.BOF = function(){
       genre = 'paren';
     } else if(/^angle/.test(match.noun)) {
       genre = 'angle';
-      maybeNotABracket = true;
+      spacingdirection = 'none';
     } else if(match.noun === 'bracket') {
       // REGIONAL VARIATION
       // but, there isn't another short way to say [], so?
@@ -538,16 +537,19 @@ bililiteRange.bounds.BOF = function(){
     // Should 'symmetric' override 'left' in either order, so that
     // spacing can be directional even if the char isn't?
     _.each(adjectives, function(adjective) {
-      console.log("EA", adjective);
       if(/^(left|right)/.test(adjective)) {
-        console.log("LR", adjective);
-        direction = adjective;
+        var dir = adjective.replace(/-pointing/g, '');
+        symboldirection = symboldirection || dir;
+        if(!/pointing/.test(adjective)) {
+          spacingdirection = spacingdirection || dir;
+        }
       } else if(/^(neutral|vertical|straight|typewriter|dumb|symmetric)$/.test(adjective)) {
-        direction = 'symmetric';
+        symboldirection = 'symmetric';
         asciiness = 'ascii'; // slight hack
       } else if(/^(typographic|curved|book|directional|smart)$/.test(adjective)
           || (/^(curly)$/.test(adjective) && /^quot/.test(match.noun))) {
-        direction = direction || 'inferred';
+        symboldirection = symboldirection || 'inferred';
+        spacingdirection = spacingdirection || 'inferred';
       } else if(/^(low|lower|bottom|low[- ]9)$/.test(adjective)) {
         height = 'low';
       } else if(/^(upper|high|top)$/.test(adjective)) {
@@ -583,32 +585,18 @@ bililiteRange.bounds.BOF = function(){
     // what about 'inferred'? 'symmetric' is kind of nonsense for these of course hm
     // Is the defaultTo for which char to pick or also for it to be directionally spaced
     // in that dir then?
-    var choose = function(ls, rs, ld, rd, usuallyDouble, defaultTo) {
+    var choose = function(ls, rs, ld, rd, usuallyDouble) {
       var doubled = (usuallyDouble ? (doubledness !== 'single') : (doubledness === 'double'));
-      var left;
-      if(direction === 'left' || direction === 'left-pointing') {
-        left = true;
-      } else if(direction === 'right' || direction === 'right-pointing') {
-        left = false;
-      } else if(defaultTo) {
-        left = (defaultTo === 'left');
-      } else {
+      if(!symboldirection) {
         return;
       }
       var n = (triple ? 3 : 1);
-      if(doubled) {
-        if(left) {
-          artificially_type(ld.repeat(n));
-        } else {
-          artificially_type(rd.repeat(n));
-        }
-      } else {
-        if(left) {
-          artificially_type(ls.repeat(n));
-        } else {
-          artificially_type(rs.repeat(n));
-        }
-      }
+      var symbol = (
+        (symboldirection === 'left') ? (doubled ? ld : ls) : (doubled ? rd : rs)
+        ).repeat(n);
+      artificially_type(symbol,
+        (spacingdirection === 'left' ? ' ' : spacingdirection === 'right' ? '' : null),
+        (spacingdirection === 'left' ? '' : spacingdirection === 'right' ? ' ' : null));
     }
     if(genre === 'curly') {
       choose('{', '}', '{{', '}}', false);
@@ -617,7 +605,6 @@ bililiteRange.bounds.BOF = function(){
     } else if(genre === 'paren') {
       choose('(', ')', '((', '))', false);
     } else if(asciiness === 'ascii' && (genre === 'chevron' || genre === 'guillemet')) {
-      console.log('LDA', direction, doubledness);
       choose('<', '>', '<<', '>>', genre === 'guillemet');
     } else if(triple) {
       // default """ over ''' per python convention
@@ -634,20 +621,23 @@ bililiteRange.bounds.BOF = function(){
     } else if(genre === 'guillemet') {
       choose('‹', '›', '«', '»', true);
     } else if(height === 'low') {
+      symboldirection = symboldirection || 'left';
+      spacingdirection = spacingdirection || 'left';
       choose('‚', '’', '„', '”', true, 'left');
     // hmm should direction==undefined and asciiness=='unicode' mean
     // to infer the direction here?
-    } else if(asciiness !== 'ascii' && /^(left|right|inferred)/.test(direction)) {
+    } else if(asciiness !== 'ascii' && /^(left|right|inferred)/.test(symboldirection)) {
       choose('‘', '’', '“', '”', true);
     } else {
       // use "choose" here in case I make it treat spacing
       // separately for left and right? but what if it's neither. TODO.
-      // choose("'", "'", '"', '"', true);
-      if(doubledness === 'single') {
-        artificially_type("'");
-      } else {
-        artificially_type('"');
-      }
+      symboldirection = 'left';
+      choose("'", "'", '"', '"', true);
+      //  if(doubledness === 'single') {
+      //  artificially_type("'");
+      //} else {
+      //  artificially_type('"');
+      //}
     }
   });
 //  add_command(/^(single (quote|quote mark|quotation mark))$/i, function() { artificially_type('\''); });
