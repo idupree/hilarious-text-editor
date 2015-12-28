@@ -24,6 +24,17 @@ bililiteRange.bounds.lines = function() {
     this.clone().bounds('endbounds').bounds('EOL').bounds()[1]
     ];
 };
+bililiteRange.bounds.horizontalwhitespace = function() {
+  var b = this.bounds();
+  var text = this.all();
+  while(/[ \t]/.test(text[b[0]-1])) {
+    b[0] -= 1;
+  }
+  while(/[ \t]/.test(text[b[1]])) {
+    b[1] += 1;
+  }
+  return b;
+};
 // for now just some fixed definition of matching a "word"
 //wordstouched, wordsintersected, wordscontained
 // i could make these just be a nonspecial function..
@@ -1219,7 +1230,18 @@ bililiteRange.bounds.BOF = function(){
           }
         }
         if(isDelete) {
+          var indentation = range.indentation();
           range.text('', 'end');
+          //...hmm but not deleting indentation...
+          range.bounds('horizontalwhitespace');
+          var leftmargin = (range.bounds()[0] === range.clone().bounds('BOL').bounds()[0]);
+          if(leftmargin) {
+            range.bounds([range.bounds()[0]+indentation.length, range.bounds()[1]]);
+          }
+          if(range.bounds()[0] !== range.bounds()[1]) {
+            var newspace = (leftmargin ? '' : ' ');
+            range.text(newspace, 'start');
+          }
         }
         range.select();
       });
