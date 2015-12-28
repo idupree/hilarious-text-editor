@@ -25,7 +25,12 @@ bililiteRange.bounds.lines = function() {
     ];
 };
 // for now just some fixed definition of matching a "word"
-bililiteRange.bounds.words = function() {
+//wordstouched, wordsintersected, wordscontained
+// i could make these just be a nonspecial function..
+bililiteRange.bounds.wordstouched = function() { return rangewords(this, 'wordstouched'); };
+bililiteRange.bounds.wordsintersected = function() { return rangewords(this, 'wordsintersected'); };
+bililiteRange.bounds.wordscontained = function() { return rangewords(this, 'wordscontained'); };
+/*function() {
   var b = this.bounds();
   var b0 = this.clone().bounds('startbounds'
     ).findBack(/[ \t\r\n]|^/, true).bounds('endbounds'
@@ -36,6 +41,47 @@ bililiteRange.bounds.words = function() {
   if(b0 < b1) {
     return [b0, b1];
   } else {
+    return b;
+  }
+};*/
+// touched: all words in "foo^ bar b$az"
+// intersected: just "bar baz"
+// contained: just "bar"
+//
+// TODO wordsintersected seems buggy (too aggressive like touched?)
+//
+// Can I extend (if needed) bililiteRange to work on non-DOM
+// "{string: 'fsddfs'}"? Or more concisely "['fsddfs']".
+// So that it's slightly easier for me to experiment with in the console?
+// And/or so that I can more easily (albeit slowly) integrate with
+// fancy editors if they have a way to extract whole text and cursor loc,
+// and set it?
+function rangewords(range, aggressiveness) {
+  var b = range.bounds();
+  var r0 = range.clone().bounds('startbounds');
+  if(aggressiveness === 'wordstouched' ||
+      (aggressiveness === 'wordsintersected' && /[^ \t\r\n]/.test(r0.bounds()[0]))) {
+    r0.findBack(/[ \t\r\n]|^/, true).bounds('endbounds');
+  }
+  if(aggressiveness === 'wordscontained' && /[^ \t\r\n]/.test(r0.bounds()[0]-1)) {
+    r0.find(/[ \t\r\n]|$/, true).bounds('startbounds');
+  }
+  r0.find(/[^ \t\r\n]/, true).bounds('startbounds');
+  var b0 = r0.bounds()[0];
+  var r1 = range.clone().bounds('endbounds');
+  if(aggressiveness === 'wordstouched' ||
+      (aggressiveness === 'wordsintersected' && /[^ \t\r\n]/.test(r1.bounds()[1]-1))) {
+    r1.find(/[ \t\r\n]|$/, true).bounds('startbounds');
+  }
+  if(aggressiveness === 'wordscontained' && /[^ \t\r\n]/.test(r1.bounds()[1])) {
+    r1.findBack(/[ \t\r\n]|^/, true).bounds('endbounds');
+  }
+  r1.findBack(/[^ \t\r\n]/, true).bounds('endbounds');
+  var b1 = r1.bounds()[1];
+  if(b0 < b1) {
+    return [b0, b1];
+  } else {
+    // if this is wordscontained and size>0 selection that contains no words, do you think this return makes sense?
     return b;
   }
 };
@@ -1133,7 +1179,7 @@ bililiteRange.bounds.BOF = function(){
           //if(!range.match) {
           //  range.bounds(backwards ? 'start' : 'end');
           //}
-          range.bounds('words');
+          range.bounds('wordstouched');
         } else if(/^line/.test(unit)) {
           //range.bounds(backwards ? 'BOL' : 'EOL');
           range.bounds('lines');
@@ -1149,6 +1195,9 @@ bililiteRange.bounds.BOF = function(){
           }
           if(!range.match || count === Infinity) {
             range.expandToInclude(range.clone().bounds(backwards ? 'start' : 'end'));
+          }
+          if(/^word/.test(unit)) {
+            range.bounds('wordscontained');
           }
         }
         if(isThrough) {
