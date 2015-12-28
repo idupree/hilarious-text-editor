@@ -868,6 +868,10 @@ bililiteRange.bounds.BOF = function(){
   add_command(/^page ?up$/i, function() {
     hilarious.page_updown(false);
   });
+  // hexadecimal literals
+  add_command(/^(?:0|o|zero) ?x ?((?:[0-9a-f] ?)*)$/i, function(hex) {
+    artificially_type('0x'+hex.replace(/ /g, ''));
+  });
   //delete the last N ___s
 //  add_command(/select (?:from (.*) (?:to|two|too|2) (.*))/,
 //  add_command('spell *characters', function(chars) {
