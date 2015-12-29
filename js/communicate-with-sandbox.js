@@ -9,27 +9,37 @@ var files = hilarious.sandbox_files = {
   "baz/quux": "hello world\n\nlorem ipsum dolor sit amet\n"
 };
 
+// Using setTimeout(_, 0) just in case any other code depends on
+// the callbacks being asynchronous (all the other saving modes
+// do it that way).
+
 var ops = {
   save: function(filename, contents, timeout, success, failure) {
-    files[filename] = contents;
-    success();
+    setTimeout(function() {
+      files[filename] = contents;
+      success();
+    }, 0);
   },
   abort: function(saveRequest) {
     console.log("this sandbox saves/loads synchronously and thus aborting is not needed");
   },
   load: function(filename, success, failure) {
-    if(_.has(files, filename)) {
-      success(files[filename]);
-    } else {
-      failure();
-    }
+    setTimeout(function() {
+      if(_.has(files, filename)) {
+        success(files[filename]);
+      } else {
+        failure();
+      }
+    }, 0);
   },
   load_status: function(success, failure) {
-    success({
-      context_name: "Demo editor",
-      default_file_name: null,
-      editable_files: hilarious.algo.to_set(files)
-    });
+    setTimeout(function() {
+      success({
+        context_name: "Demo editor",
+        default_file_name: null,
+        editable_files: hilarious.algo.to_set(files)
+      });
+    }, 0);
   }
 };
 if(hilarious.use_sandbox) {
