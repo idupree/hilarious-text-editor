@@ -1230,9 +1230,25 @@ bililiteRange.bounds.BOF = function(){
           }
         }
         if(isDelete) {
+          // good idea:
+          // function neatenWhitespace(logicalUnitRange, editableRange).
+          // editableRange encloses logicalUnitRange and the point is for
+          // it to exclude the indentation so we don't accidentally change
+          // the indentation.
+          // logicalUnitRange can be zero-length for e.g. after deletions
+          // or when the user requests neatening whitespace.
+          // if longer, it can contain e.g. "foo^bar$  baz" which can
+          // be neatened to "foo bar baz" so that the pre-insertion part
+          // doesn't need to think harder about whitespace.  post-insertion,
+          // it can use all the heuristics to find out whether its neighbors
+          // indeed like 1 whitespace or 2 or 0 (w.r.t. it).  Also that
+          // would be a good place to put autocapitalization nearby.
+          // ("dictate ____" or something.)
           var indentation = range.indentation();
           range.text('', 'end');
           //...hmm but not deleting indentation...
+          //TODO fix this if you deleted some of the indentation too.
+          //also TODO try not to delete 2x spaces after fullstop/!/? perhaps?
           range.bounds('horizontalwhitespace');
           var leftmargin = (range.bounds()[0] === range.clone().bounds('BOL').bounds()[0]);
           if(leftmargin) {
