@@ -62,8 +62,8 @@ static_resources = [
   'vendor/underscore-min.js',
   'vendor/jquery.min.js',
   'modified_vendor/annyang.modified.js',
-  'modified_vendor/bililiteRange.js',
-  'vendor/bililiteRange.util.js',
+  'vendor/bililiteRange.js',
+  'modified_vendor/bililiteRange.util.js',
   'vendor/xregexp-all.js',
   'generated/unicode_names_map.json'
   ]
