@@ -44,6 +44,11 @@ var ops = {
 };
 if(hilarious.use_sandbox) {
   hilarious.loadsave_ops = ops;
+  $(function() {
+    hilarious.load_status(function() {
+      hilarious.load_file(state.default_file_name);
+    });
+  });
 }
 
 }());
