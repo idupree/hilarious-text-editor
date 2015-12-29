@@ -55,6 +55,7 @@ static_resources = [
   'js/hilarious.js',
   'js/hilarious-dull-algorithms.js',
   'js/saving.js',
+  'js/communicate-with-sandbox.js',
   'js/communicate-with-hilarious-server.js',
   'js/communicate-with-chrome-filesystem.js',
   'js/polyfills.js',

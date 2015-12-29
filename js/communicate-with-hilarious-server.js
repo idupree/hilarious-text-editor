@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-hilarious.use_hilarious_server = !(window.chrome && chrome.fileSystem);
+hilarious.use_hilarious_server = !(hilarious.use_sandbox || (window.chrome && chrome.fileSystem));
 
 var state = hilarious.state;
 
