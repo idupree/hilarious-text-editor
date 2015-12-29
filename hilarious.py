@@ -325,7 +325,7 @@ def request_handler(server_origin,
 
 def hilariously_edit(server_host, server_port, paths, exclude_paths, auth_type, on_save):
   server_ip = socket.gethostbyname(server_host)
-  server_origin = 'http://' + server_host + ':' + str(server_port)
+  server_origin = 'http://localhost:' + str(server_port)
 
   sys.stdout.write('\nGo to:\n' + server_origin + '/\n\n')
   if auth_type in [None, 'none']:
@@ -409,6 +409,8 @@ def main():
   parser.add_argument('--create-file', action='store_true', help="when the command line lists a particular file to edit, --create-file says to create it if it doesn't exist yet. Without --create-file, passing a nonexistent file is an error.")
   parser.add_argument('--on-save', action='append', help='run whenever a file is (automatically) saved; shell syntax')
   parser.add_argument('--exclude-re', action='append', help="even if listed as a thing to edit, don't edit files whose absolute paths match this regular expression (python dialect of regexp)")
+  parser.add_argument('--port', '-p', type=int, default=3419, help='TCP port to bind to (default 3419)')
+  parser.add_argument('--bind', '-b', default='localhost', help='IP address to bind to (default localhost; 0.0.0.0 for everywhere)')
   parser.add_argument('things_to_edit', nargs='*')
   args = parser.parse_args()
 
@@ -439,7 +441,7 @@ def main():
       lambda pattern: re.search(pattern, path) != None,
       exclude_regexps))
 
-  hilariously_edit('localhost', 3419, args.things_to_edit, exclude_paths, args.auth, on_save)
+  hilariously_edit(args.bind, args.port, args.things_to_edit, exclude_paths, args.auth, on_save)
 
 if __name__ == '__main__':
   main()
