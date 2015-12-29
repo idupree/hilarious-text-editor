@@ -124,7 +124,7 @@ function get_token(doneCallback) {
 function initialize_once_we_have_token() {
   hilarious.load_status(function() {
     hilarious.load_file(state.default_file_name);
-  })
+  });
 }
 
 if(hilarious.use_hilarious_server) {
