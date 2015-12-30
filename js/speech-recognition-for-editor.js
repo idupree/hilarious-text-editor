@@ -418,7 +418,36 @@ function add_command(regex_or_str, fn) {
 bililiteRange.bounds.EOF = function() {
 };
 bililiteRange.bounds.BOF = function(){
-};*/
+};
+
+
+"select the next 3 codepoints"
+"unicode nfkd normalize the selection"
+rot13 the selection
+base64 encode the selection
+base64 decode the selection
+base64 the selection (inferred based on whether it looks like base64 already)
+similar for other bases/encodings
+percent-encode? url-encode/decode?
+these could be useful for extension on various web pages and/or in scratch space with command area
+convert the number to hex(adecimal)
+convert the number to decimal, octal (0o)?, binary, balanced (trinary|ternary) (lol)
+capcamelcase (each symbol / the whole phrase as a whole / guess something reasonable if possible)
+(generate) random base26/base36(lowercase)/base62/base64(urlsafe by default? else standard?) 13 (chars|bits)
+
+help() design --- help for a category (list of things; add categories to commands); friendly summary if regex is too awful (still list regex at bottom of thing); prose if needed; list of examples auto-lifted from testsuite (so: maybe switch testsuite to the quick brown fox?), with broken tests crossed out and replaced with their actual test? If I want I can replace the | or ^$ with a <selection>...</selection> with CSS, which makes copy/paste harder or easier depending what you want to do, and even if I don't, I can put the | or ^$ in an element in order to colorize it..
+
+let annyang cb()s return 'continue' to actually not claim this command. like, the angle one.
+
+--sandbox mode, like chrome app and fs server modes, but where all the state is localstorage so there's no security nuisances and i don't have the complications of either of those modes. (default initialize to have a few test files, i think.)
+
+name for mid dot multiply thingie
+mid ?dot
+dot (product|times|multiply|multiplied by)
+cross (product|times|multiply|multiplied by)
+
+
+*/
 // we'll want:
 // most-recent selection range, for retrospective commands like "no cap that" / "no space that"
 //  var commands = {
