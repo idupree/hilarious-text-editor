@@ -829,7 +829,7 @@ cross (product|times|multiply|multiplied by)
     // I'll need the phonetic alphabet factored outta here
     // but also as commands so they're recognized better when possible ?
     // dictate, dictation, literal, transcribe, prose...
-  add_command(/^dictate (.*)$/i, function(text) { artificially_type(text); });
+  add_command(/^dictate (.*)$/i, function(text) { artificially_type(text, ' ', ' '); });
   // TODO these should probably use 'hilarious.editor' instead of 'activeElement',
   // at least if the current element is not a textarea?
   add_command(/^(?:go|move) ?to (?:line |9:)?([0-9]+)$/i, function(line) {
