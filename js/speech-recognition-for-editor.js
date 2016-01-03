@@ -403,7 +403,11 @@ function showCorrections(undo) {
     if(result === '\n') { result = 'newline'; }
     $correctionsbox.append(newDivForInfobox().css(
         idx === undo.resultIdx ? {'font-weight': 'bold'} : {}
-      ).text((idx + 1) + ': ' + result));
+      ).text(
+        (idx + 1) + ': ' + result +
+        ((idx === undo.resultIdx && undo.explicitlyChosenButDidNothing)
+          ? ' (no effect)' : '')
+      ));
   });
 }
 function chooseAlternate(n) {
@@ -431,6 +435,14 @@ function chooseAlternate(n) {
       undo.explicitlyChosenButDidNothing = true;
       showCorrections();
     }
+    var $infobox = getHilariousTextEditorInfobox();
+    $infobox.children('.nomatches').remove();
+    var $correctionsbox = newDivForInfobox().addClass('nomatches').appendTo($infobox);
+    newDivForInfobox().css({
+      'font-weight': 'bold',
+      'margin': '1em 0'
+      }).text('(explicit "choose ' + (n + 1) + '")'
+      ).appendTo($correctionsbox);
   }
 }
 
