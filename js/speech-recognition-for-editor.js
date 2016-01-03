@@ -373,14 +373,12 @@ function newDivForInfobox() {
   });
 }
 function showCorrections(undo) {
-  console.log('showCorrections', undo);
   currentCommandIsManuallyHandlingUndo = true;
   // a way to correct things whose wrong interpretation didn't change anything! uh
   // ok:
   undo = undo || lastCommand;
   var $infobox = getHilariousTextEditorInfobox();
   var $correctionsbox;
-  console.log("?", undo.resultNoMatch);
   if(undo.resultNoMatch) {
     $infobox.children('.nomatches').remove();
     $correctionsbox = newDivForInfobox().addClass('nomatches').appendTo($infobox);
