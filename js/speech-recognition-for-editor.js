@@ -202,6 +202,122 @@ var editedElement = function() {
   return el;
 };
 
+// Undo undo system:
+// currenttext, any speechrec state, chosen-command-phrase, list-of-possible-phrases, text-and-selection-and-"that"-delta
+// If ".", examine later texts to see if they said "Dot" or "period"/nothing?
+// undostacks per element? max depth ~1000?
+//var undoStack = [];
+//var undoIdx = 0;
+//gc'ed?
+// TODO editing/undo system that *knows* what was changed specifically
+var currentResults = null;
+var currentCommand = null;
+var currentText = null;
+var currentSelection = null;
+var currentCommandIsManuallyHandlingUndo = false;
+annyang.addCallback('result', function(results) {
+  currentResults = results;
+});
+annyang.addCallback('resultPreMatch', function(commandText) {
+  currentCommand = commandText;
+  var el = editedElement();
+  currentSelection = bililiteRange(el).bounds('selection');
+  currentText = bililiteRange(el).all();
+});
+function clearCurrents() {
+  currentResults = null;
+  currentCommand = null;
+  currentText = null;
+  currentSelection = null;
+  currentCommandIsManuallyHandlingUndo = false;
+}
+function getHilariousBililiteData(el) {
+  var d = bililiteRange(el || editedElement()).data();
+  var h = d.hilariousTextEditor;
+  if(!h) {
+    h = d.hilariousTextEditor = {
+      undoStack: [],
+      undoIdx: -1
+    };
+  }
+  return h;
+}
+function trimOldUndos(el) {
+  // needed as long as I'm storing entire document texts in the undo history
+  // (I could trim later if the texts are smaller, though)
+  var h = getHilariousBililiteData(el);
+  var undosToKeep = 1000;
+  // * 2 for asymptotics of deleting from beginning of arrays
+  if(h.undoIdx > undosToKeep * 2) {
+    h.undoStack.splice(0, undosToKeep);
+    h.undoIdx -= undosToKeep;
+  }
+}
+//function addUndo
+// deal with input, etal, like bililite undo TODO
+// this may need a first element to start in undo stack..or beforeinput probably
+// works better
+annyang.addCallback('resultMatch', function() {
+  if(!currentCommandIsManuallyHandlingUndo) {
+    var el = editedElement();
+    var newText = bililiteRange(el).all();
+    var newSelection = bililiteRange(el).bounds('selection');
+    if(newText !== currentText
+      || newSelection.bounds()[0] !== currentSelection.bounds()[0]
+      || newSelection.bounds()[1] !== currentSelection.bounds()[1]) {
+      var h = getHilariousBililiteData(el);
+      h.undoStack.splice(h.undoIdx + 1, Infinity, {
+        oldText: currentText,
+        newText: newText,
+        oldSelection: currentSelection.bounds(),
+        newSelection: newSelection.bounds(),
+        command: currentCommand,
+        results: currentResults
+      });
+      h.undoIdx = h.undoStack.length - 1;
+      trimOldUndos(el);
+    }
+  }
+  clearCurrents();
+});
+annyang.addCallback('resultNoMatch', clearCurrents);
+function hilariousUndo() {
+  currentCommandIsManuallyHandlingUndo = true;
+  var el = editedElement();
+  var currentText = bililiteRange(el).all();
+  var currentSelection = bililiteRange(el).bounds('selection');
+  var h = getHilariousBililiteData(el);
+  var undo = h.undoStack[h.undoIdx];
+  if(!undo) {
+    console.log("nothing left to undo");
+  } else if(undo.newText !== currentText) {
+    console.log("undo is not valid anymore and too chicken to restore old state deleting new work (TODO allow 'yes really undo that' to allow it anyway?");
+    // don't check for equal *selection* when undoing, though, as it's okay info to lose in this case
+  } else {
+    bililiteRange(el).all(undo.oldText);
+    bililiteRange(el).bounds(undo.oldSelection).select();
+    h.undoIdx -= 1;
+  }
+}
+function hilariousRedo() {
+  currentCommandIsManuallyHandlingUndo = true;
+  var el = editedElement();
+  var currentText = bililiteRange(el).all();
+  var currentSelection = bililiteRange(el).bounds('selection');
+  var h = getHilariousBililiteData(el);
+  var undo = h.undoStack[h.undoIdx + 1];
+  if(!undo) {
+    console.log("nothing left to redo");
+  } else if(undo.oldText !== currentText) {
+    console.log("redo is not valid anymore and too chicken to restore new state deleting new work (TODO allow 'yes really redo that' to allow it anyway?");
+    // don't check for equal *selection* when redoing, though, as it's okay info to lose in this case
+  } else {
+    bililiteRange(el).all(undo.newText);
+    bililiteRange(el).bounds(undo.newSelection).select();
+    h.undoIdx += 1;
+  }
+}
+
 // For recognizing the user saying "U+03C1",
 // the recognizer isn't very good at it.
 // I could match "you plus" and then a pause and then
@@ -459,7 +575,9 @@ cross (product|times|multiply|multiplied by)
   // is hard, but at least ones that are words...
   add_command('hello world alert box', function() { alert('Hello world!'); });
     // TODO a different undo implementation?
-  add_command('undo that', function() { document.execCommand('undo'); });
+  //add_command('undo that', function() { document.execCommand('undo'); });
+  add_command('undo that', function() { hilariousUndo(); });
+  add_command('redo that', function() { hilariousRedo(); });
     // Some of these phonetic alphabet words are spelled the way
     // en-US speech recognition will produce them, like "alpha",
     // instead of the NATO-phonetic-alphabet-standard spelling of "alfa".
