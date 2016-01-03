@@ -108,10 +108,9 @@ function loadFileEntryUTF8(fileEntry, doneCallback, errorCallback) {
 }
 function writeFileEntryUTF8(fileEntry, text, doneCallback, errorCallback) {
   fileEntry.createWriter(function(writer) {
-    writer.addEventListener('error', function(){console.log('wer');errorCallback();});
-    writer.addEventListener('writeend', function(){console.log('fd43');doneCallback();});
-    console.log('ewre');
-    console.log('tex "' + text + '"');
+    writer.addEventListener('error', function(){console.log('writeFileEntryUTF8: write error');errorCallback();});
+    writer.addEventListener('writeend', function(){doneCallback();});
+    //console.log('saving text "' + text + '"');
     // TODO: line endings native or transparent?
     // https://developer.mozilla.org/en-US/docs/Web/API/Blob/Blob
     writer.write(new Blob([text], {type: 'text/plain; charset=utf-8'}));
@@ -291,12 +290,12 @@ function scanDirectoryTreeImpl(dirEntry, doneCallback, errorCallback) {
   chrome.fileSystem.getDisplayPath(dirEntry, function(dirPath) {
     openDirectories[dirPath] = dirEntry;
     walkFileTree(dirEntry, dirPath, function(entry, path, recurse, dontRecurse) {
-      console.log('x');
+      //console.log('x');
       testEditable(entry, path, function() {
-          console.log('y');
+          //console.log('y');
           if(entry.isFile) {
             editableFilesHere[path] = true;
-            console.log(path, entry);
+            //console.log(path, entry);
           }
           recurse();
         },
@@ -323,15 +322,15 @@ function rescan(doneCallback, errorCallback) {
 }
 
 function scanDirectoryTree(dirEntry) {
-  console.log('opening dirEntry', dirEntry);
+  //console.log('opening dirEntry', dirEntry);
   scanDirectoryTreeImpl(dirEntry, function(editableFilesHere) {
-    console.log('editable files here:', editableFilesHere);
+    //console.log('editable files here:', editableFilesHere);
     saveEntryToRetainedOpenFiles(dirEntry);
     hilarious.status_loaded({
       editable_files: _.assign(editableFilesHere, hilarious.state.editable_files)
     });
   }, function() {
-    console.log("some file system error in the process of scanning dir");
+    console.log("scanDirectoryTree: some file system error in the process of scanning dir");
   });
 }
 
