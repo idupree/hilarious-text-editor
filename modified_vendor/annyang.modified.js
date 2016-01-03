@@ -185,8 +185,15 @@
           }
           return false;
         }
+        if (debugState) {
+          root.console.log('Speech heard:', event, event.resultIndex, event.results);
+        }
 
-        // Map the results to an array
+        // Map the results to an array.
+        // SpeechRecognitionResult[k].confidence is useless: always 0,
+        // in my test in Chromium 47. In our use case I think
+        // resultIndex is zero, as well.  event.emma and event.interpretation
+        // are null.
         var SpeechRecognitionResult = event.results[event.resultIndex];
         var results = [];
         for (var k = 0; k<SpeechRecognitionResult.length; k++) {
