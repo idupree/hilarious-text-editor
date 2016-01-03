@@ -212,14 +212,19 @@ var editedElement = function() {
 // TODO editing/undo system that *knows* what was changed specifically
 var currentResults = null;
 var currentCommand = null;
+var currentResultIdx = null;
 var currentText = null;
 var currentSelection = null;
 var currentCommandIsManuallyHandlingUndo = false;
+var lastCommand = null;
+var currentlyRechoosing = null;
 annyang.addCallback('result', function(results) {
   currentResults = results;
 });
-annyang.addCallback('resultPreMatch', function(commandText) {
+annyang.addCallback('resultPreMatch', function(commandText, commandName, results, resultsIdx) {
   currentCommand = commandText;
+  currentResults = results;
+  currentResultIdx = resultsIdx;
   var el = editedElement();
   currentSelection = bililiteRange(el).bounds('selection');
   currentText = bililiteRange(el).all();
@@ -227,9 +232,11 @@ annyang.addCallback('resultPreMatch', function(commandText) {
 function clearCurrents() {
   currentResults = null;
   currentCommand = null;
+  currentResultIdx = null;
   currentText = null;
   currentSelection = null;
   currentCommandIsManuallyHandlingUndo = false;
+  currentlyRechoosing = null;
 }
 function getHilariousBililiteData(el) {
   var d = bililiteRange(el || editedElement()).data();
@@ -258,65 +265,207 @@ function trimOldUndos(el) {
 // this may need a first element to start in undo stack..or beforeinput probably
 // works better
 annyang.addCallback('resultMatch', function() {
+  var el = editedElement();
   if(!currentCommandIsManuallyHandlingUndo) {
-    var el = editedElement();
     var newText = bililiteRange(el).all();
     var newSelection = bililiteRange(el).bounds('selection');
-    if(newText !== currentText
-      || newSelection.bounds()[0] !== currentSelection.bounds()[0]
-      || newSelection.bounds()[1] !== currentSelection.bounds()[1]) {
-      var h = getHilariousBililiteData(el);
-      h.undoStack.splice(h.undoIdx + 1, Infinity, {
+    lastCommand = {
         oldText: currentText,
         newText: newText,
         oldSelection: currentSelection.bounds(),
         newSelection: newSelection.bounds(),
         command: currentCommand,
+        resultIdx: currentResultIdx,
         results: currentResults
-      });
+      };
+    if(newText !== currentText
+      || newSelection.bounds()[0] !== currentSelection.bounds()[0]
+      || newSelection.bounds()[1] !== currentSelection.bounds()[1]) {
+      var h = getHilariousBililiteData(el);
+      h.undoStack.splice(h.undoIdx + 1, Infinity, lastCommand);
       h.undoIdx = h.undoStack.length - 1;
-      trimOldUndos(el);
     }
+    showCorrections();
   }
+  trimOldUndos(el);
   clearCurrents();
 });
-annyang.addCallback('resultNoMatch', clearCurrents);
-function hilariousUndo() {
+annyang.addCallback('resultNoMatch', function() {
+  // TODO if "choose n" is misheard as no command at all,
+  // how do we know that in order to not cover up what they were trying to choose between?
+  // oh runCommand currently will not call resultNoMatch cbs,
+  // however it will indicate in its return value.
+  showCorrections({
+    //results: ((currentlyRechoosing != null) ? lastCommand.results : currentResults)
+    results: currentResults,
+    resultNoMatch: true
+  });
+  clearCurrents();
+});
+function hilariousUndo(showUI) {
   currentCommandIsManuallyHandlingUndo = true;
   var el = editedElement();
   var currentText = bililiteRange(el).all();
   var currentSelection = bililiteRange(el).bounds('selection');
   var h = getHilariousBililiteData(el);
   var undo = h.undoStack[h.undoIdx];
+  var message;
   if(!undo) {
-    console.log("nothing left to undo");
+    message = "nothing left to undo";
   } else if(undo.newText !== currentText) {
-    console.log("undo is not valid anymore and too chicken to restore old state deleting new work (TODO allow 'yes really undo that' to allow it anyway?");
+    // TODO allow 'yes really undo/redo that' to allow it anyway?
+    message = "undo is not valid anymore (file has changed)";
     // don't check for equal *selection* when undoing, though, as it's okay info to lose in this case
   } else {
+    message = "Undone: " + undo.command;
     bililiteRange(el).all(undo.oldText);
     bililiteRange(el).bounds(undo.oldSelection).select();
     h.undoIdx -= 1;
   }
+  console.log(message);
+  if(showUI) {
+    // hmm interesting question whether boldness means "command recognized" or "something happened"
+    var $infobox = getHilariousTextEditorInfobox();
+    $infobox.empty();
+    newDivForInfobox().css({
+      'font-weight': 'bold'
+      }).text(message).appendTo($infobox);
+  }
 }
-function hilariousRedo() {
+function hilariousRedo(showUI) {
   currentCommandIsManuallyHandlingUndo = true;
   var el = editedElement();
   var currentText = bililiteRange(el).all();
   var currentSelection = bililiteRange(el).bounds('selection');
   var h = getHilariousBililiteData(el);
   var undo = h.undoStack[h.undoIdx + 1];
+  var message;
   if(!undo) {
-    console.log("nothing left to redo");
+    message = "nothing left to redo";
   } else if(undo.oldText !== currentText) {
-    console.log("redo is not valid anymore and too chicken to restore new state deleting new work (TODO allow 'yes really redo that' to allow it anyway?");
+    // TODO allow 'yes really undo/redo that' to allow it anyway?
+    message = "redo is not valid anymore (file has changed)";
     // don't check for equal *selection* when redoing, though, as it's okay info to lose in this case
   } else {
+    message = "Redone: " + undo.command;
     bililiteRange(el).all(undo.newText);
     bililiteRange(el).bounds(undo.newSelection).select();
     h.undoIdx += 1;
   }
+  console.log(message);
+  if(showUI) {
+    // hmm interesting question whether boldness means "command recognized" or "something happened"
+    var $infobox = getHilariousTextEditorInfobox();
+    $infobox.empty();
+    newDivForInfobox().css({
+      'font-weight': 'bold'
+      }).text(message).appendTo($infobox);
+  }
 }
+function newDivForInfobox() {
+  return $('<div>').css({
+    // Comment this out if trying to read the CSS in chrome devtools more easily
+    // (it's needed in order to override third party stylesheets reliably):
+    'all': 'unset'
+  }).css({
+    // all: unset overrides UA stylesheet, so:
+    'display': 'block'
+  });
+}
+function showCorrections(undo) {
+  console.log('showCorrections', undo);
+  currentCommandIsManuallyHandlingUndo = true;
+  // a way to correct things whose wrong interpretation didn't change anything! uh
+  // ok:
+  undo = undo || lastCommand;
+  var $infobox = getHilariousTextEditorInfobox();
+  var $correctionsbox;
+  console.log("?", undo.resultNoMatch);
+  if(undo.resultNoMatch) {
+    $infobox.children('.nomatches').remove();
+    $correctionsbox = newDivForInfobox().addClass('nomatches').appendTo($infobox);
+    newDivForInfobox().css({
+      'font-weight': 'bold',
+      'margin': '1em 0'
+      }).text("None of these are a known command (for help say \"help\"):"
+      ).appendTo($correctionsbox);
+    // TODO implement "help"
+  } else {
+    $infobox.empty();
+    $correctionsbox = newDivForInfobox().appendTo($infobox);
+  }
+  // could also do Choose Bravo / etc
+  // should I decapitalize them etc for command matching?? what about '\n'? etc?
+  // show the regex/friendlyname that they actually match? omit nonfunctional ones?
+  // bold the one that is currently chosen?
+  _.each(undo.results, function(result, idx) {
+    //console.log(result, idx === undo.resultIdx);
+    if(result === '\n') { result = 'newline'; }
+    $correctionsbox.append(newDivForInfobox().css(
+        idx === undo.resultIdx ? {'font-weight': 'bold'} : {}
+      ).text((idx + 1) + ': ' + result));
+  });
+}
+function chooseAlternate(n) {
+  var el = editedElement();
+  var h = getHilariousBililiteData(el);
+  var undo = h.undoStack[h.undoIdx];
+  if(!undo || lastCommand !== undo) {
+    console.log("something is wrong here; not trying");
+  } else {
+    currentlyRechoosing = n;
+    var undoIdx = h.undoIdx;
+    hilariousUndo();
+    // even if the undo didn't work, we're going ahead with a modified redo attempt:
+    h.undoIdx = undoIdx - 1;
+    currentCommandIsManuallyHandlingUndo = false;
+    var anyMatch = annyang.runCommand(undo.results[n], undo.results, n);
+    currentCommandIsManuallyHandlingUndo = true;
+    currentlyRechoosing = null;
+    // restore even if annyang.runCommand found no command, so that re-choosing can work
+    if(!anyMatch) {
+      h.undoIdx = undoIdx;
+      undo.newText = undo.oldText;
+      undo.newSelection = undo.oldSelection;
+      undo.resultIdx = n;
+      undo.explicitlyChosenButDidNothing = true;
+      showCorrections();
+    }
+  }
+}
+
+function getHilariousTextEditorInfobox() {
+  // re-check its existence every time we want it in case
+  // the page replaced the contents of <body> or something
+  var $box = $('#hilariousTextEditorInfobox');
+  if($box.length === 0) {
+    $box = createHilariousTextEditorInfobox();
+  }
+  return $box;
+}
+//var $hilariousTextEditorInfobox =
+function createHilariousTextEditorInfobox() {
+  return $('<div id="hilariousTextEditorInfobox" dir="ltr" lang="en"></div>').css({
+    // Comment this out if trying to read the CSS in chrome devtools more easily
+    // (it's needed in order to override third party stylesheets reliably):
+    'all': 'initial'
+  }).css({
+  'pointer-events': 'none',
+  'position': 'fixed',
+  'background-color': 'rgba(255, 255, 255, 0.4)',
+  'color': '#000',
+  'top': 0,
+  'left': 0,
+  'border-bottom-right-radius': '10px',
+  'padding': '10px',
+  'font-family': 'Verdana, Geneva, sans-serif',
+  'font-size': '18px',
+  'white-space': 'pre-wrap',
+  'word-break': 'break-word'
+  }).appendTo('body');
+}
+
+getHilariousTextEditorInfobox().text("hello world");
 
 // For recognizing the user saying "U+03C1",
 // the recognizer isn't very good at it.
@@ -576,8 +725,12 @@ cross (product|times|multiply|multiplied by)
   add_command('hello world alert box', function() { alert('Hello world!'); });
     // TODO a different undo implementation?
   //add_command('undo that', function() { document.execCommand('undo'); });
-  add_command('undo that', function() { hilariousUndo(); });
-  add_command('redo that', function() { hilariousRedo(); });
+  add_command('undo that', function() { hilariousUndo(true); });
+  add_command('redo that', function() { hilariousRedo(true); });
+  add_command(XRegExp("^choose ({number})$", 'i'), function(n) {
+    var count = parse_spoken_count(n);
+    chooseAlternate(count - 1);
+  });
     // Some of these phonetic alphabet words are spelled the way
     // en-US speech recognition will produce them, like "alpha",
     // instead of the NATO-phonetic-alphabet-standard spelling of "alfa".

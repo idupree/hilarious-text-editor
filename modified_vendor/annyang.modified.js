@@ -75,9 +75,10 @@
     }
   };
 
-  var runCommand = function(commandText, possibleResults) {
+  var runCommand = function(commandText, possibleResults, i) {
     if (!possibleResults) {
       possibleResults = [commandText];
+      i = 0;
     }
     // try and match recognized text to one of the commands on the list
     for (var j = 0, l = commandsList.length; j < l; j++) {
@@ -91,10 +92,10 @@
         }
         // execute the matched command
         invokeCallbacks(callbacks.resultPreMatch, commandText,
-          commandsList[j].originalPhrase, possibleResults);
+          commandsList[j].originalPhrase, possibleResults, i);
         cb();
         invokeCallbacks(callbacks.resultMatch, commandText,
-          commandsList[j].originalPhrase, possibleResults);
+          commandsList[j].originalPhrase, possibleResults, i);
         return true;
       }
     }
@@ -211,7 +212,7 @@
           if (debugState) {
             root.console.log('Speech recognized: %c'+commandText, debugStyle);
           }
-          if (runCommand(commandText, results)) {
+          if (runCommand(commandText, results, i)) {
             return true;
           }
         }
