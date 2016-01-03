@@ -36,7 +36,7 @@
 
   var commandsList = [];
   var recognition;
-  var callbacks = { start: [], error: [], end: [], result: [], resultMatch: [], resultNoMatch: [], errorNetwork: [], errorPermissionBlocked: [], errorPermissionDenied: [] };
+  var callbacks = { start: [], error: [], end: [], result: [], resultPreMatch: [], resultMatch: [], resultNoMatch: [], errorNetwork: [], errorPermissionBlocked: [], errorPermissionDenied: [] };
   var autoRestart;
   var lastStartedAt = 0;
   var debugState = false;
@@ -90,6 +90,8 @@
           //}
         }
         // execute the matched command
+        invokeCallbacks(callbacks.resultPreMatch, commandText,
+          commandsList[j].originalPhrase, possibleResults);
         cb();
         invokeCallbacks(callbacks.resultMatch, commandText,
           commandsList[j].originalPhrase, possibleResults);
