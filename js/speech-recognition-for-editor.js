@@ -667,7 +667,7 @@ function add_command(regex_or_str, fn) {
       annyang.registerCommand(name, function(str, debug) {
         var match = XRegExp.exec(str, regexp);
         if(match) {
-          if(debug) { console.log('regex:', match); }
+          if(debug) { console.log('regex matches:', match); }
           return function() { fn(match); };
         } else {
           return null;
@@ -678,7 +678,7 @@ function add_command(regex_or_str, fn) {
         var result = regexp.exec(str);
         if(result) {
           var parameters = result.slice(1);
-          if(debug) { console.log('regex:', parameters); }
+          if(debug) { console.log('regex captured groups:', parameters); }
           return function(){ fn.apply(null, parameters); };
         } else {
           return null;
