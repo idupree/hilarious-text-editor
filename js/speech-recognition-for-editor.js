@@ -6,6 +6,84 @@ if(!hilarious.use_web_speech_recognition_api) {
   return;
 }
 
+annyang.debug();
+var debugState = true;
+var debugStyle = 'font-weight: bold; color: #00f;';
+// TODO configurable lang. Translated commands will be more work but at least allow en-GB?  Useful for after "dictate"
+annyang.setLanguage('en-US');
+
+var commandsList = [];
+// resultPreMatch: [], resultMatch: [], resultNoMatch: []
+
+// 'command' returns null for no match, or returns
+// a nullary function to call for the effect, if there
+// was a match.
+//
+// 'phrase' is used as a human-readable(ish) description
+// of the pattern matched, and/or as an identity for
+// removing the command if requested by removeCommands().
+var registerCommand = function(phrase, command) {
+  commandsList.push({ command: command, originalPhrase: phrase });
+  if (debugState) {
+    console.log('Command successfully loaded: %c'+phrase, debugStyle);
+  }
+};
+
+/**
+ * Runs the command specified by the text
+ * as if the text were the result of speech recognition.
+ * Returns true if any command was matched.
+ *
+ * @param {String} commandText - text of command
+ */
+var runCommand = function(commandText, possibleResults, i) {
+  if (!possibleResults) {
+    possibleResults = [commandText];
+    i = 0;
+  }
+  // try and match recognized text to one of the commands on the list
+  for (var j = 0, l = commandsList.length; j < l; j++) {
+    var cb = commandsList[j].command(commandText, debugState);
+    if (cb) {
+      if (debugState) {
+        console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
+        //if (parameters.length) {
+        //  console.log('with parameters', parameters);
+        //}
+      }
+      // execute the matched command
+      resultPreMatchFunction(commandText,
+        commandsList[j].originalPhrase, possibleResults, i);
+      cb();
+      resultPostMatchFunction(commandText,
+        commandsList[j].originalPhrase, possibleResults, i);
+      return true;
+    }
+  }
+  return false;
+};
+var runResults = function(results) {
+  if (debugState) {
+    console.log('speech-recognized text alternatives', results);
+  }
+  var commandText;
+  // go over each of the 5 results and alternative results received (we've set maxAlternatives to 5 above)
+  for (var i = 0; i<results.length; i++) {
+    // the text recognized
+    commandText = results[i].replace(/^[ \t]*/, '').replace(/[ \t]*$/, '');
+    if (debugState) {
+      console.log('Speech recognized: %c'+commandText, debugStyle);
+    }
+    if (runCommand(commandText, results, i)) {
+      return true;
+    }
+  }
+  resultNoMatchFunction(results);
+  return false;
+};
+annyang.addCallback('result', runResults);
+
+
 bililiteRange.fn.expandToInclude = function(otherRange) {
   return this.bounds([
     Math.min(this.bounds()[0], otherRange.bounds()[0]),
@@ -218,10 +296,7 @@ var currentSelection = null;
 var currentCommandIsManuallyHandlingUndo = false;
 var lastCommand = null;
 var currentlyRechoosing = null;
-annyang.addCallback('result', function(results) {
-  currentResults = results;
-});
-annyang.addCallback('resultPreMatch', function(commandText, commandName, results, resultsIdx) {
+var resultPreMatchFunction = function(commandText, commandName, results, resultsIdx) {
   currentCommand = commandText;
   currentResults = results;
   currentResultIdx = resultsIdx;
@@ -230,7 +305,7 @@ annyang.addCallback('resultPreMatch', function(commandText, commandName, results
     currentSelection = bililiteRange(el).bounds('selection');
     currentText = bililiteRange(el).all();
   }
-});
+};
 function clearCurrents() {
   currentResults = null;
   currentCommand = null;
@@ -266,7 +341,7 @@ function trimOldUndos(el) {
 // deal with input, etal, like bililite undo TODO
 // this may need a first element to start in undo stack..or beforeinput probably
 // works better
-annyang.addCallback('resultMatch', function() {
+var resultPostMatchFunction = function() {
   var el = editedElement();
   if(el) {
     if(!currentCommandIsManuallyHandlingUndo) {
@@ -293,19 +368,19 @@ annyang.addCallback('resultMatch', function() {
     trimOldUndos(el);
   }
   clearCurrents();
-});
-annyang.addCallback('resultNoMatch', function() {
+};
+var resultNoMatchFunction = function(results) {
   // TODO if "choose n" is misheard as no command at all,
   // how do we know that in order to not cover up what they were trying to choose between?
   // oh runCommand currently will not call resultNoMatch cbs,
   // however it will indicate in its return value.
   showCorrections({
     //results: ((currentlyRechoosing != null) ? lastCommand.results : currentResults)
-    results: currentResults,
+    results: results,
     resultNoMatch: true
   });
   clearCurrents();
-});
+};
 function hilariousUndo(showUI) {
   currentCommandIsManuallyHandlingUndo = true;
   var el = editedElement();
@@ -425,10 +500,10 @@ function chooseAlternate(n) {
     // even if the undo didn't work, we're going ahead with a modified redo attempt:
     h.undoIdx = undoIdx - 1;
     currentCommandIsManuallyHandlingUndo = false;
-    var anyMatch = annyang.runCommand(undo.results[n], undo.results, n);
+    var anyMatch = runCommand(undo.results[n], undo.results, n);
     currentCommandIsManuallyHandlingUndo = true;
     currentlyRechoosing = null;
-    // restore even if annyang.runCommand found no command, so that re-choosing can work
+    // restore even if runCommand found no command, so that re-choosing can work
     if(!anyMatch) {
       h.undoIdx = undoIdx;
       undo.newText = undo.oldText;
@@ -570,8 +645,7 @@ function artificially_type(text, lhs_tightness, rhs_tightness) {
 var added_commands = {};
 var added_literal_commands = {};
 // TODO case-fold rather than lowercase
-annyang.debug();
-annyang.registerCommand('(literal match)', function(str, debug) {
+registerCommand('(literal match)', function(str, debug) {
       var normalizedstr = str.trim().toLowerCase();
       var matchfunc = added_literal_commands[normalizedstr];
       if(matchfunc) {
@@ -620,7 +694,7 @@ function search_for_unicode_characters(searched) {
       }
       return num_found !== 0;
 }
-annyang.registerCommand('unicode <unicode-character-name>', function(str, debug) {
+registerCommand('unicode <unicode-character-name>', function(str, debug) {
     var match = /^unicode (.*)$/i.exec(str);
     if(!match) { return false; }
     var possible_name = match[1].toUpperCase();
@@ -668,7 +742,7 @@ function add_command(regex_or_str, fn) {
     var regexp = regex_or_str;
     var matchObj = regexp.xregexp && /n/.test(regexp.xregexp.flags);
     if(matchObj) {
-      annyang.registerCommand(name, function(str, debug) {
+      registerCommand(name, function(str, debug) {
         var match = XRegExp.exec(str, regexp);
         if(match) {
           if(debug) { console.log('regex matches:', match); }
@@ -678,7 +752,7 @@ function add_command(regex_or_str, fn) {
         }
       });
     } else {
-      annyang.registerCommand(name, function(str, debug) {
+      registerCommand(name, function(str, debug) {
         var result = regexp.exec(str);
         if(result) {
           var parameters = result.slice(1);
@@ -1094,8 +1168,6 @@ cross (product|times|multiply|multiplied by)
 
     // haha what if I downloaded a database of formal Unicode character names and
     // recognized things like LEFT-POINTING DOUBLE ANGLE QUOTATION MARK.
-    // I would need to hack annyang to be able to do a table lookup, or like,
-    // to take a function as an alternative to regex, to be at all reasonably efficient.
     // I get [" left pointing double angle quotation mark", " left pointing double angle quotation marks", " left pointing double angle quotation Mac", " left pointing double angle quotation Mack", " lift pointing double angle quotation mark"]
     // so after stripping spaces and lowercasing...
     // Include any unicode name strings in forms with the hyphens replaced with spaces and/or nothing?
@@ -1576,10 +1648,6 @@ cross (product|times|multiply|multiplied by)
         range.select();
       });
   add_command(/^space ?bar$/i, function(){ artificially_type(' '); });
-    // unfortunately, annyang passes the string to str.trim() before we
-    // match it, and that trims the newline character it contains...
-    // so, as a hack, match the empty string to match that:
-    //'newline': { regexp: /^$/, callback: function(){console.log("newline7");} }
   add_command(/^(?:newline|\n|)$/i, function(){ artificially_type('\n'); });
 //    '': function(){console.log("newline6");}
 //    'newline': { regexp: /^ *[\r\n↵x]+ *$/, callback: function(){console.log("newline5");} }
@@ -1595,15 +1663,8 @@ cross (product|times|multiply|multiplied by)
       hilarious.askUserToOpenEditableDirectory(false);
     });
   }
-  annyang.setLanguage('en-US');
-  annyang.addCallback('result', function(texts) {
-    window.txts = texts;
-    console.log('texts', texts);
-  });
-  annyang.addCallback('resultNoMatch', function(texts) {
-    console.log('showing', texts);
-  });
-  annyang.start();
+
+annyang.start();
 
 
   // <words> optional wrapper "the phrase <words>"
@@ -2162,7 +2223,7 @@ var runTextareaTest = function(test) {
   bililiteRange(textarea).bounds(start.cursorStartAndEnd).select();
   try {
     _.each(commands, function(command) {
-      annyang.runCommand(command);
+      runCommand(command);
     });
   } catch(e) {
     console.log(e);

@@ -34,9 +34,8 @@
     return undefined;
   }
 
-  var commandsList = [];
   var recognition;
-  var callbacks = { start: [], error: [], end: [], result: [], resultPreMatch: [], resultMatch: [], resultNoMatch: [], errorNetwork: [], errorPermissionBlocked: [], errorPermissionDenied: [] };
+  var callbacks = { start: [], error: [], end: [], result: [], errorNetwork: [], errorPermissionBlocked: [], errorPermissionDenied: [] };
   var autoRestart;
   var lastStartedAt = 0;
   var debugState = false;
@@ -59,47 +58,6 @@
 
   var isInitialized = function() {
     return recognition !== undefined;
-  };
-
-  // 'command' returns null for no match, or returns
-  // a nullary function to call for the effect, if there
-  // was a match.
-  //
-  // 'phrase' is used as a human-readable(ish) description
-  // of the pattern matched, and/or as an identity for
-  // removing the command if requested by removeCommands().
-  var registerCommand = function(phrase, command) {
-    commandsList.push({ command: command, originalPhrase: phrase });
-    if (debugState) {
-      root.console.log('Command successfully loaded: %c'+phrase, debugStyle);
-    }
-  };
-
-  var runCommand = function(commandText, possibleResults, i) {
-    if (!possibleResults) {
-      possibleResults = [commandText];
-      i = 0;
-    }
-    // try and match recognized text to one of the commands on the list
-    for (var j = 0, l = commandsList.length; j < l; j++) {
-      var cb = commandsList[j].command(commandText, debugState);
-      if (cb) {
-        if (debugState) {
-          root.console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
-          //if (parameters.length) {
-          //  root.console.log('with parameters', parameters);
-          //}
-        }
-        // execute the matched command
-        invokeCallbacks(callbacks.resultPreMatch, commandText,
-          commandsList[j].originalPhrase, possibleResults, i);
-        cb();
-        invokeCallbacks(callbacks.resultMatch, commandText,
-          commandsList[j].originalPhrase, possibleResults, i);
-        return true;
-      }
-    }
-    return false;
   };
 
   root.annyang = {
@@ -204,20 +162,6 @@
         }
 
         invokeCallbacks(callbacks.result, results);
-        var commandText;
-        // go over each of the 5 results and alternative results received (we've set maxAlternatives to 5 above)
-        for (var i = 0; i<results.length; i++) {
-          // the text recognized
-          commandText = results[i].replace(/^[ \t]*/, '').replace(/[ \t]*$/, '');
-          if (debugState) {
-            root.console.log('Speech recognized: %c'+commandText, debugStyle);
-          }
-          if (runCommand(commandText, results, i)) {
-            return true;
-          }
-        }
-        invokeCallbacks(callbacks.resultNoMatch, results);
-        return false;
       };
     },
 
@@ -325,46 +269,6 @@
       recognition.lang = language;
     },
 
-    registerCommand: registerCommand,
-
-    /**
-     * Remove existing commands. Called with a single phrase, array of phrases, or methodically. Pass no params to remove all commands.
-     *
-     * #### Examples:
-     * ````javascript
-     * var commands = {'hello': helloFunction, 'howdy': helloFunction, 'hi': helloFunction};
-     *
-     * // Remove all existing commands
-     * annyang.removeCommands();
-     *
-     * // Add some commands
-     * annyang.addCommands(commands);
-     *
-     * // Don't respond to hello
-     * annyang.removeCommands('hello');
-     *
-     * // Don't respond to howdy or hi
-     * annyang.removeCommands(['howdy', 'hi']);
-     * ````
-     * @param {String|Array|Undefined} [commandsToRemove] - Commands to remove
-     * @method removeCommands
-     */
-    removeCommands: function(commandsToRemove) {
-      if (commandsToRemove === undefined) {
-        commandsList = [];
-        return;
-      }
-      commandsToRemove = Array.isArray(commandsToRemove) ? commandsToRemove : [commandsToRemove];
-      commandsList = commandsList.filter(function(command) {
-        for (var i = 0; i<commandsToRemove.length; i++) {
-          if (commandsToRemove[i] === command.originalPhrase) {
-            return false;
-          }
-        }
-        return true;
-      });
-    },
-
     /**
      * Add a callback function to be called in case one of the following events happens:
      *
@@ -413,16 +317,7 @@
         return;
       }
       callbacks[type].push({callback: cb, context: context || this});
-    },
-
-    /**
-     * Runs the command specified by the text
-     * as if the text were the result of speech recognition.
-     * Returns true if any command was matched.
-     *
-     * @param {String} commandText - text of command
-     */
-    runCommand: runCommand
+    }
   };
 
 }).call(this);
