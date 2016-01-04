@@ -3,7 +3,7 @@
   "name": "Spoken Text Editor",
   "description": "This extension lets you edit web forms with your voice.",
   "version": "2",
-  "minimum_chrome_version": "31",
+  "minimum_chrome_version": "41",
   "icons": {
     "16": "media/favicon16x16.png",
     "32": "media/favicon32x32.png"
