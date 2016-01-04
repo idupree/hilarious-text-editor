@@ -1,24 +1,31 @@
 {
   "manifest_version": 2,
-  "name": "Hilarious Text Editor",
-  "description": "This is a text editor that you can control with your voice.",
+  "name": "Spoken Text Editor",
+  "description": "This extension lets you edit web forms with your voice.",
   "version": "2",
   "minimum_chrome_version": "31",
   "icons": {
     "16": "media/favicon16x16.png",
     "32": "media/favicon32x32.png"
   },
-  "app": {
-    "background": {
-      "scripts": ["js/chrome-app-main.js"]
-    }
+  "background": {
+    "scripts": ["js/chrome-extension-background.js"],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_icon": "media/favicon32x32.png",
+    "default_title": "Turn on voice control for this tab"
+  },
+  "options_ui": {
+    "page": "html/chrome-extension-options.html",
+    "chrome_style": true,
+    "open_in_tab": true
   },
   "optional_permissions": [
     "clipboardRead", "clipboardWrite"
   ],
   "permissions": [
-    "audioCapture",
-    {"fileSystem": ["write", "retainEntries", "directory"]}
+    "activeTab"
   ]
 }
 

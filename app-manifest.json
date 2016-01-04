@@ -1,0 +1,24 @@
+{
+  "manifest_version": 2,
+  "name": "Hilarious Text Editor",
+  "description": "This is a text editor that you can control with your voice.",
+  "version": "2",
+  "minimum_chrome_version": "31",
+  "icons": {
+    "16": "media/favicon16x16.png",
+    "32": "media/favicon32x32.png"
+  },
+  "app": {
+    "background": {
+      "scripts": ["js/chrome-app-main.js"]
+    }
+  },
+  "optional_permissions": [
+    "clipboardRead", "clipboardWrite"
+  ],
+  "permissions": [
+    "audioCapture",
+    {"fileSystem": ["write", "retainEntries", "directory"]}
+  ]
+}
+
