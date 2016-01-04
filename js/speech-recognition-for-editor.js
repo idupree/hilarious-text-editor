@@ -226,8 +226,10 @@ annyang.addCallback('resultPreMatch', function(commandText, commandName, results
   currentResults = results;
   currentResultIdx = resultsIdx;
   var el = editedElement();
-  currentSelection = bililiteRange(el).bounds('selection');
-  currentText = bililiteRange(el).all();
+  if(el) {
+    currentSelection = bililiteRange(el).bounds('selection');
+    currentText = bililiteRange(el).all();
+  }
 });
 function clearCurrents() {
   currentResults = null;
@@ -266,28 +268,30 @@ function trimOldUndos(el) {
 // works better
 annyang.addCallback('resultMatch', function() {
   var el = editedElement();
-  if(!currentCommandIsManuallyHandlingUndo) {
-    var newText = bililiteRange(el).all();
-    var newSelection = bililiteRange(el).bounds('selection');
-    lastCommand = {
-        oldText: currentText,
-        newText: newText,
-        oldSelection: currentSelection.bounds(),
-        newSelection: newSelection.bounds(),
-        command: currentCommand,
-        resultIdx: currentResultIdx,
-        results: currentResults
-      };
-    if(newText !== currentText
-      || newSelection.bounds()[0] !== currentSelection.bounds()[0]
-      || newSelection.bounds()[1] !== currentSelection.bounds()[1]) {
-      var h = getHilariousBililiteData(el);
-      h.undoStack.splice(h.undoIdx + 1, Infinity, lastCommand);
-      h.undoIdx = h.undoStack.length - 1;
+  if(el) {
+    if(!currentCommandIsManuallyHandlingUndo) {
+      var newText = bililiteRange(el).all();
+      var newSelection = bililiteRange(el).bounds('selection');
+      lastCommand = {
+          oldText: currentText,
+          newText: newText,
+          oldSelection: currentSelection.bounds(),
+          newSelection: newSelection.bounds(),
+          command: currentCommand,
+          resultIdx: currentResultIdx,
+          results: currentResults
+        };
+      if(newText !== currentText
+        || newSelection.bounds()[0] !== currentSelection.bounds()[0]
+        || newSelection.bounds()[1] !== currentSelection.bounds()[1]) {
+        var h = getHilariousBililiteData(el);
+        h.undoStack.splice(h.undoIdx + 1, Infinity, lastCommand);
+        h.undoIdx = h.undoStack.length - 1;
+      }
+      showCorrections();
     }
-    showCorrections();
+    trimOldUndos(el);
   }
-  trimOldUndos(el);
   clearCurrents();
 });
 annyang.addCallback('resultNoMatch', function() {
