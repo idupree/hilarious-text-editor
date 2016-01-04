@@ -1,16 +1,24 @@
 (function(){
 "use strict";
 
-hilarious.use_web_speech_recognition_api = (window.annyang != null);
-if(!hilarious.use_web_speech_recognition_api) {
-  return;
+if(!window.hilarious) { window.hilarious = {}; }
+
+hilarious.is_chrome_extension_content_script = !!chrome.extension;
+
+if(!hilarious.is_chrome_extension_content_script) {
+  hilarious.use_web_speech_recognition_api = (window.annyang != null);
+  if(!hilarious.use_web_speech_recognition_api) {
+    return;
+  }
 }
 
-annyang.debug();
 var debugState = true;
 var debugStyle = 'font-weight: bold; color: #00f;';
-// TODO configurable lang. Translated commands will be more work but at least allow en-GB?  Useful for after "dictate"
-annyang.setLanguage('en-US');
+if(!hilarious.is_chrome_extension_content_script) {
+  annyang.debug();
+  // TODO configurable lang. Translated commands will be more work but at least allow en-GB?  Useful for after "dictate"
+  annyang.setLanguage('en-US');
+}
 
 var commandsList = [];
 // resultPreMatch: [], resultMatch: [], resultNoMatch: []
@@ -62,7 +70,7 @@ var runCommand = function(commandText, possibleResults, i) {
   }
   return false;
 };
-var runResults = function(results) {
+var runResults = hilarious.runSpeechRecognitionResults = function(results) {
   if (debugState) {
     console.log('speech-recognized text alternatives', results);
   }
@@ -81,7 +89,9 @@ var runResults = function(results) {
   resultNoMatchFunction(results);
   return false;
 };
-annyang.addCallback('result', runResults);
+if(!hilarious.is_chrome_extension_content_script) {
+  annyang.addCallback('result', runResults);
+}
 
 
 bililiteRange.fn.expandToInclude = function(otherRange) {
@@ -241,13 +251,26 @@ function parse_spoken_count(count) {
   }
 }
 
+// will the crossorigin work??
+// if https://developer.chrome.com/extensions/manifest/web_accessible_resources
+// but that makes fingerprinting work
+// so maybe send it differently instead.
+var getResourceUrl = function(pathRelativeToRoot) {
+  if(hilarious.is_chrome_extension_content_script) {
+    return chrome.extension.getURL(pathRelativeToRoot);
+  } else {
+    return '/' + pathRelativeToRoot;
+  }
+};
+
 var unicode_names_map = null;
 var unicode_names_string = '';
+
 $.ajax({
   method: 'GET',
   cache: true,
   dataType: 'json',
-  url: '/generated/unicode_names_map.json',
+  url: getResourceUrl('generated/unicode_names_map.json'),
 }).done(function(data) {
   unicode_names_map = data;
   // TODO is this too slow for the main thread?
@@ -1664,7 +1687,15 @@ cross (product|times|multiply|multiplied by)
     });
   }
 
-annyang.start();
+if(hilarious.is_chrome_extension_content_script) {
+  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    if(request.request === "speech") {
+      runResults(request.results);
+    }
+  });
+} else {
+  annyang.start();
+}
 
 
   // <words> optional wrapper "the phrase <words>"

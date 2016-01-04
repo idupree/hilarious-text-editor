@@ -9,7 +9,10 @@
     "32": "media/favicon32x32.png"
   },
   "background": {
-    "scripts": ["js/chrome-extension-background.js"],
+    "scripts": [
+      "modified_vendor/annyang.modified.js",
+      "js/chrome-extension-background.js"
+    ],
     "persistent": true
   },
   "browser_action": {
