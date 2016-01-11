@@ -568,6 +568,7 @@ function createHilariousTextEditorInfobox() {
   'color': '#000',
   'top': 0,
   'left': 0,
+  'z-index': 2147483647,
   'border-bottom-right-radius': '10px',
   'padding': '10px',
   'font-family': 'Verdana, Geneva, sans-serif',
