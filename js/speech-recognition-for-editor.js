@@ -20,6 +20,8 @@ if(!hilarious.is_chrome_extension_content_script) {
   annyang.setLanguage('en-US');
 }
 
+var recognitionMode = 'command';
+
 var commandsList = [];
 // resultPreMatch: [], resultMatch: [], resultNoMatch: []
 
@@ -44,14 +46,16 @@ var registerCommand = function(phrase, command) {
  *
  * @param {String} commandText - text of command
  */
-var runCommand = function(commandText, possibleResults, i) {
+var runCommand = function(commandText, possibleResults, i, mode) {
   if (!possibleResults) {
     possibleResults = [commandText];
     i = 0;
   }
   // try and match recognized text to one of the commands on the list
+  var cb = null;
+  var originalPhrase;
   for (var j = 0, l = commandsList.length; j < l; j++) {
-    var cb = commandsList[j].command(commandText, debugState);
+    cb = commandsList[j].command(commandText, debugState);
     if (cb) {
       if (debugState) {
         console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
@@ -59,14 +63,27 @@ var runCommand = function(commandText, possibleResults, i) {
         //  console.log('with parameters', parameters);
         //}
       }
+      originalPhrase = commandsList[j].originalPhrase;
+      break;
+    }
+  }
+  if(!cb && mode === 'dictation') {
+    if (debugState) {
+      console.log('dictation:', commandText);
+    }
+    cb = function() {
+      artificially_type(commandText, ' ', ' ');
+    }
+    originalPhrase = '(dictation)';
+  }
+  if (cb) {
       // execute the matched command
       resultPreMatchFunction(commandText,
-        commandsList[j].originalPhrase, possibleResults, i);
+        originalPhrase, possibleResults, i);
       cb();
       resultPostMatchFunction(commandText,
-        commandsList[j].originalPhrase, possibleResults, i);
+        originalPhrase, possibleResults, i);
       return true;
-    }
   }
   return false;
 };
@@ -82,9 +99,21 @@ var runResults = hilarious.runSpeechRecognitionResults = function(results) {
     if (debugState) {
       console.log('Speech recognized: %c'+commandText, debugStyle);
     }
-    if (runCommand(commandText, results, i)) {
+    if (runCommand(commandText, results, i, 'command')) {
       return true;
     }
+  }
+  if(recognitionMode === 'dictation') {
+  for (var i = 0; i<results.length; i++) {
+    // the text recognized
+    commandText = results[i].replace(/^[ \t]*/, '').replace(/[ \t]*$/, '');
+    if (debugState) {
+      console.log('Speech recognized: %c'+commandText, debugStyle);
+    }
+    if (runCommand(commandText, results, i, recognitionMode)) {
+      return true;
+    }
+  }
   }
   resultNoMatchFunction(results);
   return false;
@@ -523,7 +552,7 @@ function chooseAlternate(n) {
     // even if the undo didn't work, we're going ahead with a modified redo attempt:
     h.undoIdx = undoIdx - 1;
     currentCommandIsManuallyHandlingUndo = false;
-    var anyMatch = runCommand(undo.results[n], undo.results, n);
+    var anyMatch = runCommand(undo.results[n], undo.results, n, 'dictation');
     currentCommandIsManuallyHandlingUndo = true;
     currentlyRechoosing = null;
     // restore even if runCommand found no command, so that re-choosing can work
@@ -843,6 +872,8 @@ cross (product|times|multiply|multiplied by)
     var count = parse_spoken_count(n);
     chooseAlternate(count - 1);
   });
+  add_command('dictation mode', function() { recognitionMode = 'dictation'; });
+  add_command('command mode', function() { recognitionMode = 'command'; });
     // Some of these phonetic alphabet words are spelled the way
     // en-US speech recognition will produce them, like "alpha",
     // instead of the NATO-phonetic-alphabet-standard spelling of "alfa".
@@ -2259,7 +2290,7 @@ var runTextareaTest = function(test) {
   bililiteRange(textarea).bounds(start.cursorStartAndEnd).select();
   try {
     _.each(commands, function(command) {
-      runCommand(command);
+      runCommand(command, null, null, 'command');
     });
   } catch(e) {
     console.log(e);
