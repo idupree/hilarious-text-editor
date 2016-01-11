@@ -2316,6 +2316,8 @@ var runTests = function() {
 // always? what if that's slow, or confuses an accessibility technology
 // I'd increased the timer from 100ms to 3s because Chrome's debugger
 // hadn't finished initializing by 100ms so it couldn't stop at breakpoints.
-setTimeout(runTests, 100);
+if(!hilarious.is_chrome_extension_content_script) {
+  setTimeout(runTests, 100);
+}
 
 }());
