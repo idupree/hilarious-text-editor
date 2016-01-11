@@ -866,7 +866,9 @@ cross (product|times|multiply|multiplied by)
   add_command('hello world alert box', function() { alert('Hello world!'); });
     // TODO a different undo implementation?
   //add_command('undo that', function() { document.execCommand('undo'); });
-  add_command('undo that', function() { hilariousUndo(true); });
+  // "JK" is easier for the recognition engine to reliably recognize than "undo that",
+  // which really matters for undoing in dictation mode.
+  add_command(['undo that', 'jk'], function() { hilariousUndo(true); });
   add_command('redo that', function() { hilariousRedo(true); });
   add_command(XRegExp("^(?:number|choose) ({number})$", 'i'), function(n) {
     var count = parse_spoken_count(n);
