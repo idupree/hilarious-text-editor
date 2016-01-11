@@ -839,7 +839,7 @@ cross (product|times|multiply|multiplied by)
   //add_command('undo that', function() { document.execCommand('undo'); });
   add_command('undo that', function() { hilariousUndo(true); });
   add_command('redo that', function() { hilariousRedo(true); });
-  add_command(XRegExp("^choose ({number})$", 'i'), function(n) {
+  add_command(XRegExp("^(?:number|choose) ({number})$", 'i'), function(n) {
     var count = parse_spoken_count(n);
     chooseAlternate(count - 1);
   });
@@ -937,7 +937,7 @@ cross (product|times|multiply|multiplied by)
   add_command(['dash'], function() { artificially_type('-', ' ', ' '); });
   add_command(['en dash', 'n dash'], function() { artificially_type('–', ' ', ' '); });
   add_command(['em dash', 'm dash'], function() { artificially_type('—', ' ', ' '); });
-  add_command(['plus'], function() { artificially_type('+', ' ', ' '); });
+  add_command(['+', 'plus'], function() { artificially_type('+', ' ', ' '); });
   add_command(['plus sign'], function() { artificially_type('+'); });
   add_command(['unary plus', 'unary plus sign'], function() { artificially_type('+', ' ', ''); });
   add_command(['period', 'full stop', 'fullstop'], function() { artificially_type('.', '', '  '); });
@@ -1210,7 +1210,7 @@ cross (product|times|multiply|multiplied by)
     // I'll need the phonetic alphabet factored outta here
     // but also as commands so they're recognized better when possible ?
     // dictate, dictation, literal, transcribe, prose...
-  add_command(/^dictate (.*)$/i, function(text) { artificially_type(text, ' ', ' '); });
+  add_command(/^(?:dictate|dictates|dictator|(?:(?:dick|dic) tate)|txstate) (.*)$/i, function(text) { artificially_type(text, ' ', ' '); });
   // TODO these should probably use 'hilarious.editor' instead of 'activeElement',
   // at least if the current element is not a textarea?
   add_command(/^(?:go|move) ?to (?:line |9:)?([0-9]+)$/i, function(line) {
@@ -1671,8 +1671,12 @@ cross (product|times|multiply|multiplied by)
         }
         range.select();
       });
-  add_command(/^space ?bar$/i, function(){ artificially_type(' '); });
-  add_command(/^(?:newline|\n|)$/i, function(){ artificially_type('\n'); });
+  add_command(/^space ?(?:bar)?$/i, function(){ artificially_type(' '); });
+  add_command(/^(?:newline|\n|new line|)$/i, function(){ artificially_type('\n'); });
+    
+  add_command(XRegExp('^.$', 'inA'), function(match) {
+    artificially_type(match[0].toLowerCase());
+  });
 //    '': function(){console.log("newline6");}
 //    'newline': { regexp: /^ *[\r\n↵x]+ *$/, callback: function(){console.log("newline5");} }
 /*    '\n': function() {console.log("newline1");},
