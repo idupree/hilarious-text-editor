@@ -3,7 +3,7 @@
 
 if(!window.hilarious) { window.hilarious = {}; }
 
-hilarious.is_chrome_extension_content_script = !!chrome.extension;
+hilarious.is_chrome_extension_content_script = !!window.chrome && !!chrome.extension;
 
 if(!hilarious.is_chrome_extension_content_script) {
   hilarious.use_web_speech_recognition_api = (window.annyang != null);
