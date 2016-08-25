@@ -46,7 +46,10 @@ def guess_mimetype(filename):
   elif(filename[-3:] == '.js'):
     return 'text/javascript; charset=utf-8'
   else:
-    return mimetypes.guess_type(filename, strict=False)
+    ty = mimetypes.guess_type(filename, strict=False)[0]
+    if ty == 'text/html':
+      return 'text/html; charset=utf-8'
+    return ty
 
 
 static_resources = [
