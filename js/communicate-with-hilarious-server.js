@@ -123,7 +123,10 @@ function get_token(doneCallback) {
 
 function initialize_once_we_have_token() {
   hilarious.load_status(function() {
-    hilarious.load_file(state.default_file_name);
+    hilarious.load_file(
+      (state.current_file != null)
+        ? state.current_file
+        : state.default_file_name);
   });
 }
 
