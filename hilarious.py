@@ -111,29 +111,29 @@ def editable_as_text(fname):
 
 # exclude all file paths with newlines and similar weird characters in them:
 # they are trouble and no use
-def exclude_dir(d):
-  return re.search(r'[\\/]\.git($|[\\/])|[\x00-\x1f\x7f]', d)
+def exclude_dir(d, exclude_paths):
+  return re.search(r'[\\/]\.git($|[\\/])|[\x00-\x1f\x7f]', d) or exclude_paths(d+"/")
 
-def exclude_file(f):
+def exclude_file(f, exclude_paths):
   return (
     os.path.islink(f) or
     not os.path.isfile(f) or
-    exclude_dir(f) or
+    exclude_dir(f, exclude_paths) or
     re.search(r'(~|\.swp)$|[\x00-\x1f\x7f]', f) or
     not editable_as_text(f))
 
-def relpath_editable_files_under(rootpath):
+def relpath_editable_files_under(rootpath, exclude_paths):
   for dirpath, dirnames, filenames in os.walk(rootpath):
-    dirnames[:] = [d for d in dirnames if not exclude_dir(abspath(join(dirpath, d)))]
+    dirnames[:] = [d for d in dirnames if not exclude_dir(abspath(join(dirpath, d)), exclude_paths)]
     for f in filenames:
-      if not exclude_file(abspath(join(dirpath, f))):
+      if not exclude_file(abspath(join(dirpath, f)), exclude_paths):
         yield relpath(join(dirpath, f), rootpath)
 
-def abspath_editable_files_under(rootpath):
+def abspath_editable_files_under(rootpath, exclude_paths):
   return map(lambda f: abspath(join(rootpath, f)),
-             relpath_editable_files_under(rootpath))
+             relpath_editable_files_under(rootpath, exclude_paths))
 
-def abspath_editable_files_under_or_including(rootpath):
+def abspath_editable_files_under_or_including(rootpath, exclude_paths):
   rootpath = abspath(rootpath)
   if os.path.isfile(rootpath):
     if not exclude_file(rootpath):
@@ -141,7 +141,7 @@ def abspath_editable_files_under_or_including(rootpath):
     else:
       return []
   else:
-    return abspath_editable_files_under(rootpath)
+    return abspath_editable_files_under(rootpath, exclude_paths)
 
 def request_handler(server_origin,
     hilarious_edited_paths = (),
@@ -164,7 +164,7 @@ def request_handler(server_origin,
     nonlocal editable_files
     editable_files = set(f
       for path in hilarious_edited_paths
-      for f in abspath_editable_files_under_or_including(path)
+      for f in abspath_editable_files_under_or_including(path, exclude_paths)
       if not exclude_paths(f)
       )
   recompute_editable_files()
